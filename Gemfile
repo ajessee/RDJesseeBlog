@@ -23,6 +23,7 @@ gem 'elasticsearch-model'
 gem 'elasticsearch-rails'
 gem 'pry-byebug', platforms: %i[mri mingw x64_mingw]
 gem 'truncato'
+gem 'image_processing', '~> 1.2'
 
 group :development do
   # Access an IRB console on exception pages or by using <%= console %> in views
