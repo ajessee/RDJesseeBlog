@@ -10,10 +10,5 @@ environment.plugins.prepend('Provide',
   })
 )
 
-environment.config.merge({
-  output: {
-    hashFunction: require('metrohash').MetroHash64,
-  }
-})
 
 module.exports = environment
