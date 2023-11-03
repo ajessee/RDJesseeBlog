@@ -35,7 +35,7 @@ class UsersController < ApplicationController
       @user = User.find(params[:id])
       if @user[params[:attributeToUpdate]].to_s != params[:attributeValue].downcase
         params[:attributeValue].downcase == "true" ? adminValue = 1 : adminValue = 0
-        if @user.update_attributes(params[:attributeToUpdate] => adminValue)
+        if @user.update(params[:attributeToUpdate] => adminValue)
           flash[:success] = "User updated"
           @value = @user[params[:attributeToUpdate]]
           render plain: "Change"
@@ -43,7 +43,7 @@ class UsersController < ApplicationController
       end
     else
       @user = User.find(params[:id])
-      if @user.update_attributes(user_params)
+      if @user.update(user_params)
         flash[:success] = "Profile updated"
         redirect_to "/#flash"
       else

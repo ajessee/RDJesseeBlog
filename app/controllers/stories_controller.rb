@@ -98,7 +98,7 @@ class StoriesController < ApplicationController
       @story = Story.find(params[:id])
       params[:attributeValue] = nil if params[:attributeValue] == ""
       if @story[params[:attributeToUpdate]].to_s != params[:attributeValue]
-        if @story.update_attributes(params[:attributeToUpdate] => params[:attributeValue])
+        if @story.update(params[:attributeToUpdate] => params[:attributeValue])
           @story.strip_divs
           @story.get_wordcount
           @story.save
@@ -109,7 +109,7 @@ class StoriesController < ApplicationController
     else
       @story = Story.find(params[:id])
       helpers.clean_story_params(story_params, params)
-      if @story.update_attributes(story_params)
+      if @story.update(story_params)
         @story.strip_divs
         @story.get_wordcount
         @story.save

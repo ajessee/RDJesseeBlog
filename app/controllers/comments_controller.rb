@@ -22,7 +22,7 @@ class CommentsController < ApplicationController
 
   def edit
     @comment = Comment.find(params[:id])
-      if @comment.update_attributes(comment_params)
+      if @comment.update(comment_params)
         @comment.save
         flash.now[:success] = "Comment updated"
         redirect_to @comment
