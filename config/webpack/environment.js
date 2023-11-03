@@ -12,7 +12,7 @@ environment.plugins.prepend('Provide',
 
 environment.config.merge({
   output: {
-    hashFunction: 'xxhash64'
+    hashFunction: require('metrohash').MetroHash64,
   }
 })
 
