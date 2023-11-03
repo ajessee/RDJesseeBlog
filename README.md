@@ -48,4 +48,4 @@ The app is written in Rails 6 and currently deployed in production using Heroku.
 * Added Elasticsearch to allow users to search stories for specific text
 * Add table sorting feature to user admin table, story admin table, tags table
 ### August 2020
-* Update all yarn package and Rails gems
+* Update all yarn package and Rails gems 
