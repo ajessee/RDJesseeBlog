@@ -1,0 +1,3 @@
+<% if recording.audio_file.attached? && recording.audio_file.blob.content_type != 'audio/mp4' && logged_in? && (recording.user_id == current_user.id || current_user.admin?) %>
+  <%= button_to 'Retry audio conversion', retry_conversion_recording_path(recording), method: :post, class: 'btn btn-default' %>
+<% end %>

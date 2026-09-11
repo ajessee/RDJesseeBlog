@@ -1,33 +1,36 @@
+require 'open3'
+require 'tmpdir'
+
 class Recording < ApplicationRecord
+  include MediaUploadValidation
+  validate_media_upload :audio_file, types: MediaUploadValidation::AUDIO_TYPES, maximum: 200.megabytes
+  class AudioConversionError < StandardError; end
+
   belongs_to :recorder, class_name: 'User', foreign_key: :user_id
   belongs_to :recordable, polymorphic: true
   has_one_attached :audio_file
   after_create_commit :process_audio!
-  after_create :set_filename
-
-  def set_filename
-    if self.audio_file.attached?
-      title = Story.find(self.recordable_id).title
-      self.audio_file.blob.update(filename: "#{self.audio_file.filename.base.gsub(/[^0-9A-Za-z]/, '')}#{self.audio_file.filename.extension}")
-    end
-  end
 
   def process_audio!
-    if audio_file.attached? && audio_file.blob.content_type != 'audio/mp4'
+    return unless audio_file.attached?
+    return if audio_file.blob.content_type == 'audio/mp4'
 
-      orig_audio_tmpfile = self.attachment_changes['audio_file'].attachable.path.to_s
-      mp4_audio_tmpfile = "#{Rails.root}/tmp/#{audio_file.blob.key}_#{audio_file.blob.filename.base}.m4a"
+    original = audio_file.blob
+    Dir.mktmpdir('rdjessee-audio-') do |directory|
+      output = File.join(directory, 'converted.m4a')
+      original.open do |source|
+        _stdout, _stderr, status = Open3.capture3(
+          'ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error',
+          '-i', source.path, '-vn', '-c:a', 'aac', '-b:a', '192k', output
+        )
+        unless status.success? && File.size?(output)
+          raise AudioConversionError, 'Audio conversion failed; the original attachment was retained'
+        end
+      end
 
-      system("ffmpeg -i #{orig_audio_tmpfile} -c:a aac -b:a 192k #{mp4_audio_tmpfile}")
-  
-      self.audio_file.attach(
-        io: File.open(mp4_audio_tmpfile),
-        filename: "#{audio_file.blob.filename.base}.m4a",
-        content_type: 'audio/mp4'
-      )
-  
-      File.delete(mp4_audio_tmpfile)
+      File.open(output, 'rb') do |file|
+        audio_file.attach(io: file, filename: "#{original.filename.base}.m4a", content_type: 'audio/mp4')
+      end
     end
   end
-
 end

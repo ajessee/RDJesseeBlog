@@ -23,15 +23,16 @@ default: &default
   encoding: unicode
   # For details on connection pooling, see rails configuration guide
   # http://guides.rubyonrails.org/configuring.html#database-pooling
-  pool: 5
+  pool: <%= ENV.fetch('RAILS_MAX_THREADS', 5) %>
+  host: <%= ENV.fetch('PGHOST', 'localhost') %>
+  username: <%= ENV.fetch('PGUSER', 'andre') %>
+  password: <%= ENV['PGPASSWORD'] %>
 
 development:
   <<: *default
   database: rdjessee_blog_development
-  username: andre
   # TODO: Change postgres port to 5432 (from 5433) on home computer
   port: 5432
-  host: localhost
 
   # The specified database role being used to connect to postgres.
   # To create additional roles in postgres see `$ createuser --help`.
@@ -66,10 +67,8 @@ development:
 test:
   <<: *default
   database: rdjessee_blog_test
-  username: andre
   # TODO: Change postgres port to 5432 (from 5433) on home computer
   port: 5432
-  host: localhost
 
 # As with config/secrets.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is

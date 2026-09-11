@@ -1,0 +1,17 @@
+.git
+.DS_Store
+.bundle
+.ruby-lsp
+.env*
+!.env.example
+config/master.key
+config/credentials/*.key
+*.dump
+*.sql
+coverage
+log
+tmp
+storage
+node_modules
+public/assets
+public/packs*

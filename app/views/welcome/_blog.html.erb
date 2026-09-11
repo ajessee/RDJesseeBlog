@@ -18,10 +18,10 @@
               <div class="col-md-7">
                 <div class="caption black">
                   <h3 class="MajestiBannerBookPartial">
-                    <%= story.title.html_safe %>
+                    <%= story_html(story.title) %>
                   </h3>
                   <div class="MajestiBannerBookParaPartial text-left">
-                    <%= truncate(story.content.html_safe, length: 200, omission: '...(click to continue reading)', escape: false) %>
+                    <%= story_html(truncate(story.content, length: 200, omission: '...(click to continue reading)', escape: false)) %>
                   </div>
                 </div>
                  <% if story.recordings.length > 0 %>
@@ -35,10 +35,10 @@
               <div class="col-md-12">
                 <div class="caption black">
                   <h3 class="MajestiBannerBookPartial">
-                    <%= story.title.html_safe %>
+                    <%= story_html(story.title) %>
                   </h3>
                   <p class="MajestiBannerBookParaPartial text-left">
-                    <%= truncate(story.content.html_safe, length: 350, omission: '...(click to continue reading)', escape: false) %>
+                    <%= story_html(truncate(story.content, length: 350, omission: '...(click to continue reading)', escape: false)) %>
                   </p>
                 </div>
                  <% if story.recordings.length > 0 %>

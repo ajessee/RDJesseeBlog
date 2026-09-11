@@ -15,7 +15,7 @@
                 <%= f.hidden_field :user_id, value: current_user.id %>
               <div>
                 <%= f.label :caption %>
-                <%= f.trix_editor :caption, class: 'form-control', placeholder: @picture.caption %>
+                <%= plain_html_editor f, :caption, class: 'form-control', placeholder: @picture.caption %>
               </div>
               <div>
                 <h5>If you want to change this picture:</h5>

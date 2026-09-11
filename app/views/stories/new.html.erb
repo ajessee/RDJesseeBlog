@@ -14,11 +14,11 @@
           <%= render 'shared/error_messages', object: f.object %>
           <div>
             <%= f.label :title %>
-            <%= f.trix_editor :title, class: 'form-control' %>
+            <%= plain_html_editor f, :title, class: 'form-control' %>
           </div>
           <div>
             <%= f.label :content %>
-            <%= f.trix_editor :content, size: "30x10", class: 'form-control make-big' %>
+            <%= plain_html_editor f, :content, size: "30x10", class: 'form-control make-big' %>
           </div>
           <div>
             <%= f.label :year_written %>
@@ -50,7 +50,7 @@
           </div>
           <div class="picture">
             <%= f.label "Upload thumbnail picture" %>
-            <%= f.file_field :picture %>
+            <%= f.file_field :picture, accept: "image/jpeg,image/png,image/gif,image/webp" %>
           </div>
           <div class="recording">
             <%= f.fields_for :recordings, @recordings do |r| %>

@@ -1,2 +1,16 @@
-<h1>Recordings#new</h1>
-<p>Find me in app/views/recordings/new.html.erb</p>
+<section id="recording_new">
+  <div class="container">
+    <h4>Upload Audio</h4>
+    <%= form_for @recording do |f| %>
+      <%= render 'shared/error_messages', object: @recording %>
+      <% if @recording.recordable_type == 'Story' %>
+        <%= hidden_field_tag 'recording[story_id]', @recording.recordable_id %>
+      <% end %>
+      <%= f.label :caption %>
+      <%= f.text_field :caption, class: 'form-control' %>
+      <%= f.label :audio_file, 'Audio file (up to 200 MB)' %>
+      <%= f.file_field :audio_file, accept: 'audio/*,video/webm,video/mp4', required: true %>
+      <%= f.submit 'Upload Audio File', class: 'btn btn-default' %>
+    <% end %>
+  </div>
+</section>

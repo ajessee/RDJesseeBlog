@@ -37,3 +37,6 @@ latest.dump
 
 # ignore test fixtures since there are emails in there
 /test/fixtures/*.yml
+
+# Runtime secrets must not be committed.
+.env*

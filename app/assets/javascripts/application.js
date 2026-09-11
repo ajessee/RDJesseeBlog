@@ -1,4 +1,3 @@
-// TODO: Get rid of this rid once you switch from sprockets to webpacker for JS
 // This is a manifest file that'll be compiled into application.js, which will include all the files
 // listed below.
 //
@@ -27,7 +26,7 @@
 //= require jqBootstrapValidation.js
 //= require vitality.js
 //= require typed.js
-//= require trix
+//= require trix/dist/trix.umd.min
 //= require jquery_ujs
 //= require_tree .
 

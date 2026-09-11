@@ -11,6 +11,10 @@ module RdjesseeBlog
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 6.0
+    # No shared cache backend is configured; adopt the format required by Rails 7.2.
+    config.active_support.cache_format_version = 7.1
+    # Upload Active Storage blobs before the recording conversion callback reads them.
+    config.active_record.run_after_transaction_callbacks_in_order_defined = true
 
     # Configuration for the application, engines, and railties goes here.
     #

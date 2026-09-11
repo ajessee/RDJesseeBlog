@@ -1,17 +1,19 @@
 class VideosController < ApplicationController
-  before_action :logged_in_user, only: [:create, :destroy, :new, :edit]
+  before_action :logged_in_user, only: [:create, :destroy, :new, :edit, :update]
+
+  before_action :correct_user, only: [:edit, :update, :destroy]
 
   def new
     @video = current_user.videos.new
   end
 
   def create
-   @video = current_user.videos.build(video_params)
+   @video = current_user.videos.build(video_params.merge(user_id: current_user.id))
    if @video.save
      flash.now[:success] = "video uploaded successfully!"
      render :show
    else
-     render 'new'
+     render 'new', status: :unprocessable_entity
    end
   end
 
@@ -40,8 +42,13 @@ class VideosController < ApplicationController
 
  private
 
+ def correct_user
+   @video = Video.find(params[:id])
+   redirect_to(root_url) unless @video.user_id == current_user.id || current_user.admin?
+ end
+
  def video_params
-   params.require(:video).permit(:caption, :year, :video, :video_file, :user_id)
+   params.require(:video).permit(:caption, :year, :video_file)
  end
 
 end

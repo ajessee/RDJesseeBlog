@@ -1,4 +1,6 @@
 class Story < ApplicationRecord
+  include MediaUploadValidation
+  validate_media_upload :picture, types: MediaUploadValidation::IMAGE_TYPES, maximum: 20.megabytes
   belongs_to :user
   has_many :taggings, dependent: :destroy
   has_many :tags, through: :taggings, dependent: :destroy
@@ -6,7 +8,7 @@ class Story < ApplicationRecord
   accepts_nested_attributes_for :pictures, allow_destroy: true
   has_many :comments, as: :commentable, dependent: :destroy
   has_many :recordings, as: :recordable, dependent: :destroy
-  accepts_nested_attributes_for :recordings, allow_destroy: true
+  accepts_nested_attributes_for :recordings, allow_destroy: true, reject_if: :all_blank
   has_many :videos, as: :videoable, dependent: :destroy
   accepts_nested_attributes_for :videos, allow_destroy: true
   validates :user_id, presence: true
@@ -64,24 +66,6 @@ class Story < ApplicationRecord
     self.as_json( only: [ :title, :content ] )
   end
 
-  @@year_array = []
-  @@decade_array = []
-  @@location_array = []
-  @@genre_array = []
-  @@category_array = []
-  @@life_stage_array = []
-
-  def self.get_metadata
-    Story.find_each do |story|
-      @@year_array.push(story.year_written)
-      @@decade_array.push(story.decade)
-      @@location_array.push(story.location) if story.location != nil
-      @@genre_array.push(story.genre) if story.genre != nil
-      @@category_array.push(story.category) if story.category != nil
-      @@life_stage_array.push(story.life_stage) if story.life_stage != nil
-    end
-  end
-
   def self.get_stories(page)
     Story.all.order(title: :asc).paginate(:page => page, :per_page => 6)
   end
@@ -123,42 +107,37 @@ class Story < ApplicationRecord
   end
 
   def self.all_years
-    @@year_array.compact!
-    @@year_array.sort.uniq!
+    distinct.where.not(year_written: nil).order(:year_written).pluck(:year_written)
   end
 
   def self.all_decades
-    @@decade_array.compact!
-    @@decade_array.sort.uniq!
+    distinct.where.not(decade: nil).order(:decade).pluck(:decade)
   end
 
   def self.all_locations
-    @@location_array.compact!
-    @@location_array.sort.uniq!
+    distinct.where.not(location: nil).pluck(:location).sort
   end
 
   def self.all_genres
-    @@genre_array.compact!
-    @@genre_array.sort.uniq!
+    distinct.where.not(genre: nil).pluck(:genre).sort
   end
 
   def self.all_categories
-    @@category_array.compact!
-    @@category_array.sort.uniq!
+    distinct.where.not(category: nil).pluck(:category).sort
   end
 
   def self.all_life_stages
-    @@life_stage_array.compact!
-    @@life_stage_array = @@life_stage_array.sort.uniq!
-    @@life_stage_array[1], @@life_stage_array[2] = @@life_stage_array[2], @@life_stage_array[1] 
-    @@life_stage_array
+    stages = distinct.where.not(life_stage: nil).pluck(:life_stage).sort
+    # Preserve the original menu order when there are enough entries to swap.
+    stages[1], stages[2] = stages[2], stages[1] if stages.length >= 3
+    stages
   end
 
   def strip_divs
-    self.title.gsub!("<div>", "")
-    self.title.gsub!("</div>", "")
-    self.content.gsub!("<div>", "")
-    self.content.gsub!("</div>", "")
+    self.title.to_s.gsub!("<div>", "")
+    self.title.to_s.gsub!("</div>", "")
+    self.content.to_s.gsub!("<div>", "")
+    self.content.to_s.gsub!("</div>", "")
   end
 
   def all_tags=(names)
@@ -172,7 +151,7 @@ class Story < ApplicationRecord
   end
 
   def get_wordcount
-    self.word_count = self.content.scan(/[\w-]+/).size
+    self.word_count = self.content.to_s.scan(/[\w-]+/).size
   end
 
 end

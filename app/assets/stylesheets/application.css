@@ -19,7 +19,7 @@
  *= require animate.min
  *= require device-mockups.min
  *= require vitality-red
- *= require trix
+ *= require trix/dist/trix
  *= require_tree .
  *= require_self
  */

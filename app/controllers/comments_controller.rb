@@ -1,6 +1,6 @@
 class CommentsController < ApplicationController
-  before_action :logged_in_user, only: [:create, :destroy, :new, :edit]
-  before_action :correct_user,   only: [:destroy, :edit]
+  before_action :logged_in_user, only: [:create, :destroy, :new, :edit, :update]
+  before_action :correct_user,   only: [:destroy, :edit, :update]
 
   def new
     @comment = Comment.new
@@ -21,18 +21,18 @@ class CommentsController < ApplicationController
   end
 
   def edit
-    @comment = Comment.find(params[:id])
-      if @comment.update(comment_params)
-        @comment.save
-        flash.now[:success] = "Comment updated"
-        redirect_to @comment
-      else
-        render 'edit'
-      end 
+    @commentable = @comment.commentable
+    render 'new'
   end
 
   def update
-
+    if @comment.update(params.require(:comment).permit(:content))
+      flash[:success] = 'Comment updated'
+      redirect_to root_path(anchor: 'guestbook')
+    else
+      @commentable = @comment.commentable
+      render 'new', status: :unprocessable_entity
+    end
   end
 
   def destroy
@@ -48,7 +48,7 @@ class CommentsController < ApplicationController
   end
 
   def build_params
-    params.require(:comment).permit(:content, :user_id)
+    params.require(:comment).permit(:content).merge(user_id: current_user.id)
   end
 
   def find_commentable
@@ -66,7 +66,7 @@ class CommentsController < ApplicationController
   end
 
   def correct_user
-    @comment = Comment.find_by(id: params[:id])
+    @comment = Comment.find(params[:id])
     redirect_to(root_url) unless @comment.user_id == current_user.id || current_user.admin?
   end
 

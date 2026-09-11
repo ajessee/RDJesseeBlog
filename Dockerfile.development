@@ -1,0 +1,18 @@
+# Development toolchain. Production uses a separate minimal runtime image.
+FROM node:24-trixie AS node
+FROM ruby:4.0.6-trixie
+RUN apt-get update -qq && apt-get install --no-install-recommends -y \
+    ffmpeg imagemagick libvips42 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+RUN gem install bundler -v 4.0.16 --no-document
+WORKDIR /app
+ENV BUNDLE_PATH=/usr/local/bundle
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]

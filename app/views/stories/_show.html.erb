@@ -15,9 +15,9 @@
           <div class="thumbnail">
             <% if story.picture.attached? %> <%= image_tag story.picture, alt: "Thumbnail", class: "img-responsive center-picture" %> <% end %>
             <div class="caption">
-              <h3><%= story.title.html_safe %></h3>
+              <h3><%= story_html(story.title) %></h3>
               <p>
-                <%= truncate(story.content.html_safe, length: 125, omission: '...(click to continue reading)') %>
+                <%= story_html(truncate(story.content, length: 125, omission: '...(click to continue reading)', escape: false)) %>
               </p>
               <p>
                 <a href=" <%= story_path(story.id) %> " class="btn btn-primary" role="button">Read</a>

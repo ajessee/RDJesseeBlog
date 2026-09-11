@@ -64,15 +64,15 @@ module StoriesHelper
   def get_results(results, story)
     if results
       results = results.select { |r| r.id == story.id.to_s }.first
-      title = results.highlight.title.nil? ? story.title : results.highlight.title.first.html_safe
-      content = results.highlight.content.nil? ? story.content : results.highlight.content.join(' / ').html_safe
+      title = results.highlight.title.nil? ? story.title : results.highlight.title.first
+      content = results.highlight.content.nil? ? story.content : results.highlight.content.join(' / ')
     else
-      title = story.title.html_safe
+      title = story.title
       content = Truncato.truncate(story.content, max_length: 500) + '(click to continue reading)'
     end
     {
-      title: title,
-      content: content.html_safe
+      title: story_html(title),
+      content: story_html(content)
     }
   end
 

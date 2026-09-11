@@ -1,0 +1,47 @@
+name: rdjessee-upgrade
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.development
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - .:/app
+      - local_media:/app/storage
+    environment:
+      RAILS_ENV: development
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: local-development-only
+      ELASTICSEARCH_URL: http://search:9200
+    depends_on:
+      db:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: local-development-only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  search:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.29
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms256m -Xmx256m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+volumes:
+  postgres_data:
+  local_media:

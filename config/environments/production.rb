@@ -12,13 +12,18 @@ Rails.application.configure do
   # Rake tasks automatically ignore this option for performance.
   config.eager_load = true
 
+  # Preserve the existing Heroku signing key across Rails upgrades.
+  config.secret_key_base = ENV.fetch("SECRET_KEY_BASE") unless ENV["SECRET_KEY_BASE_DUMMY"]
+
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
   config.action_controller.perform_caching = true
 
   # Ensures that a master key has been made available in either ENV["RAILS_MASTER_KEY"]
   # or in config/master.key. This key is used to decrypt credentials (and other encrypted files).
-  config.require_master_key = true
+  # Existing Heroku credentials still work; portable deployments can inject AWS secrets.
+  aws_credentials_in_env = ENV["AWS_ACCESS_KEY_ID"].present? && ENV["AWS_SECRET_ACCESS_KEY"].present?
+  config.require_master_key = ENV["SECRET_KEY_BASE_DUMMY"].blank? && !aws_credentials_in_env
 
   # Disable serving static files from the `/public` folder by default since
   # Apache or NGINX already handles this.
@@ -38,7 +43,7 @@ Rails.application.configure do
   # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for NGINX
 
   # Store uploaded files on the local file system (see config/storage.yml for options).
-  config.active_storage.service = :amazon
+  config.active_storage.service = ENV["SECRET_KEY_BASE_DUMMY"] ? :local : :amazon
 
   # Mount Action Cable outside main process or domain.
   # config.action_cable.mount_path = nil

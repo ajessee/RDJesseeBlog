@@ -1,6 +1,10 @@
 class StoriesController < ApplicationController
-  before_action :logged_in_user, only: [:create, :destroy, :new, :edit]
-  before_action :admin_user,   only: [:destroy, :edit]
+  rescue_from Recording::AudioConversionError do
+    redirect_to @story, alert: 'The story and original audio were saved, but audio conversion failed. Retry conversion on the story page.'
+  end
+
+  before_action :logged_in_user, only: [:create, :destroy, :new, :edit, :update]
+  before_action :admin_user,   only: [:destroy, :edit, :update]
 
   def new
     @story = Story.new
@@ -10,7 +14,6 @@ class StoriesController < ApplicationController
   def index
     @stories = Story.get_stories(params[:page])
     @active_button = "alphabetical"
-    Story.get_metadata
     @years = Story.all_years
     @decades = Story.all_decades
     @locations = Story.all_locations
@@ -20,7 +23,6 @@ class StoriesController < ApplicationController
   end
 
   def sort
-    Story.get_metadata
     @years = Story.all_years
     @decades = Story.all_decades
     @locations = Story.all_locations
@@ -68,7 +70,6 @@ class StoriesController < ApplicationController
   end
 
   def search
-    Story.get_metadata
     @years = Story.all_years
     @decades = Story.all_decades
     @locations = Story.all_locations
@@ -95,6 +96,8 @@ class StoriesController < ApplicationController
 
   def update
     if request.xhr?
+      allowed_attributes = %w[title content year_written decade location genre category life_stage]
+      return head :bad_request unless allowed_attributes.include?(params[:attributeToUpdate])
       @story = Story.find(params[:id])
       params[:attributeValue] = nil if params[:attributeValue] == ""
       if @story[params[:attributeToUpdate]].to_s != params[:attributeValue]
@@ -125,14 +128,14 @@ class StoriesController < ApplicationController
   def create
     helpers.clean_story_params(story_params, params)
     @story = current_user.stories.build(story_params)
+    @story.recordings.each { |recording| recording.recorder = current_user }
     @story.strip_divs
     @story.get_wordcount
     if @story.save
-      flash.now[:success] = "Story created!"
-      render :show
+      flash[:success] = "Story created!"
+      redirect_to @story
     else
-      flash.now[:info] = "Oops, that didn't work"
-      redirect_to "/#flash"
+      render :new, status: :unprocessable_entity
     end
   end
 

@@ -1,4 +1,4 @@
-<% provide(:title, @story.title.html_safe) %>
+<% provide(:title, strip_tags(@story.title)) %>
 <section id="show-blog">
   <div class="container">
     <!-- Flash Section -->
@@ -8,7 +8,7 @@
     <div class="row">
       <div class="col-lg-12">
         <div class="text-center" id="blog-title">
-          <h3 class="MajestiBannerBook"><%= @story.title.html_safe %></h3>
+          <h3 class="MajestiBannerBook"><%= story_html(@story.title) %></h3>
         </div>
         <hr class="colored" id="blogLine1">
         <div class="MajestiBannerBookPara">
@@ -16,13 +16,14 @@
           <div class="story-recordings text-center">
             <% @story.recordings.each do |recording| %>
                 <div id="recording-id-<%= recording.id %>">
-                <%= audio_tag (rails_blob_url recording.audio_file), controls: true %>
+                <%= audio_tag rails_blob_url(recording.audio_file), controls: true if recording.audio_file.attached? %>
+                <%= render 'recordings/retry_conversion', recording: recording %>
                 <p><%= recording.caption %></p>
                 </div>
             <% end %>
             </div>
           <% end %>
-          <%= @story.content.html_safe %>
+          <%= story_html(@story.content) %>
         </div>
       </div>
     </div>

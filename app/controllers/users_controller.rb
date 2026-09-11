@@ -1,6 +1,6 @@
 class UsersController < ApplicationController
   before_action :logged_in_user, only: [:index, :edit, :update, :destroy]
-  before_action :correct_user, only: [:edit]
+  before_action :correct_user, only: [:edit, :update], unless: -> { action_name == "update" && request.xhr? }
   before_action :admin_user, only: :destroy
 
   def index
@@ -32,14 +32,16 @@ class UsersController < ApplicationController
 
   def update
     if request.xhr?
+      return head :forbidden unless current_user.admin?
+      attribute = params[:attributeToUpdate]
+      value = params[:attributeValue].to_s.downcase
+      return head :bad_request unless %w[admin activated].include?(attribute) && %w[true false 1 0].include?(value)
+
       @user = User.find(params[:id])
-      if @user[params[:attributeToUpdate]].to_s != params[:attributeValue].downcase
-        params[:attributeValue].downcase == "true" ? adminValue = 1 : adminValue = 0
-        if @user.update(params[:attributeToUpdate] => adminValue)
-          flash[:success] = "User updated"
-          @value = @user[params[:attributeToUpdate]]
-          render plain: "Change"
-        end
+      if @user.update(attribute => ActiveModel::Type::Boolean.new.cast(value))
+        render plain: 'Change'
+      else
+        head :unprocessable_entity
       end
     else
       @user = User.find(params[:id])

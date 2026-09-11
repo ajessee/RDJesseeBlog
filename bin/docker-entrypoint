@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+mkdir -p tmp/pids log
+rm -f tmp/pids/server.pid
+# Migrations are a separate release operation, never a web-start side effect.
+exec "$@"

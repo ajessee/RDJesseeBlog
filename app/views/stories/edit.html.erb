@@ -7,11 +7,11 @@
           <%= render 'shared/error_messages', object: f.object %>
           <div>
             <%= f.label :title %>
-            <%= f.trix_editor :title, class: 'form-control' %>
+            <%= plain_html_editor f, :title, class: 'form-control' %>
           </div>
           <div>
             <%= f.label :content %>
-            <%= f.trix_editor :content, size: "30x10", class: 'form-control make-big' %>
+            <%= plain_html_editor f, :content, size: "30x10", class: 'form-control make-big' %>
           </div>
           <br/>
           <div>
@@ -63,14 +63,15 @@
           <h5>Upload a thumbnail for this story</h5>
         <% end %>
         <div class="picture">
-          <%= f.file_field :picture %>
+          <%= f.file_field :picture, accept: "image/jpeg,image/png,image/gif,image/webp" %>
         </div>
         <% if !@story.recordings.empty? %>
           <h5>Current Recordings:</h5>
           <% @story.recordings.each do |recording| %>
             <div>
               <div>
-                <%= audio_tag (rails_blob_url recording.audio_file), controls: true %>
+                <%= audio_tag rails_blob_url(recording.audio_file), controls: true if recording.audio_file.attached? %>
+                <%= render 'recordings/retry_conversion', recording: recording %>
                 <span class="audio-file-delete"><%= link_to "Delete", recording, method: :delete, class: "btn btn-danger",
                                   data: { confirm: "Are you sure?" } %></span>
               </div>

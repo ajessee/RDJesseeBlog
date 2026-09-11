@@ -14,7 +14,7 @@
                 <% end %>
               <div>
                 <%= f.label :content %>
-                <%= f.trix_editor :content, class: 'form-control' %>
+                <%= plain_html_editor f, :content, class: 'form-control' %>
               </div>
               <br>
               <div>

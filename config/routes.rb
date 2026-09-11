@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get "up" => "rails/health#show", as: :rails_health_check
   # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
   
   get 'password_resets/new'
@@ -55,6 +56,7 @@ Rails.application.routes.draw do
   end
 
   resources :recordings do
+    post :retry_conversion, on: :member
     resources :comments
   end
   

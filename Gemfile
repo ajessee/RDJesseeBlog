@@ -1,42 +1,39 @@
 source 'https://rubygems.org'
 
-ruby '3.0.0'
-gem 'rails'
+ruby '4.0.6'
+gem 'rails', '~> 8.1.0'
 gem 'sass-rails'
 gem 'bootstrap-sass'
-gem 'uglifier'
 gem 'jquery-rails'
-gem 'jbuilder'
-gem 'sdoc', group: :doc
+# JSON 3 removes positional options used by Rails' JSON decoder.
+gem 'json', '~> 2.0'
 gem 'bcrypt'
-gem 'trix-rails', require: 'trix'
 gem 'will_paginate'
-gem 'bootstrap-will_paginate'
 gem 'aws-sdk-s3'
 gem 'mini_magick'          
-gem 'font-awesome-sass'
+# Preserve the existing icon names until the browser/asset migration.
+gem 'font-awesome-sass', '~> 5.15'
 gem 'simple_form'
 gem 'pg'
+gem 'puma'
 gem 'bootsnap'
-gem 'webpacker'
-gem 'elasticsearch-model'
-gem 'elasticsearch-rails'
-gem 'pry-byebug', platforms: %i[mri mingw x64_mingw]
+# Match the existing Elasticsearch 7 service until search is migrated.
+gem 'elasticsearch-model', '~> 7.0'
+gem 'elasticsearch-rails', '~> 7.0'
+gem 'elasticsearch', '~> 7.0'
 gem 'truncato'
 gem 'image_processing', '~> 1.2'
 
 group :development do
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console'
-  gem 'listen'
+  gem 'listen', '~> 3.9'
 end
 
 group :development, :test do
-  # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
-  gem 'spring'
-  gem 'pry'
+  gem 'debug', require: false
   gem 'faker'
-  gem 'rspec-rails'
+  gem 'rspec-rails', '~> 8.0'
 end
 
 group :test do
@@ -44,14 +41,9 @@ group :test do
   # gem 'minitest-reporters'
   # gem 'mini_backtrace'
   # gem 'guard-minitest'
-  gem 'factory_girl_rails'
+  gem 'factory_bot_rails', '~> 6.4'
   gem 'simplecov', :require => false
   gem 'capybara'
   gem 'launchy'
   gem 'shoulda-matchers'
-end
-
-group :production do
-  gem 'rails_12factor'
-  gem 'puma'
 end

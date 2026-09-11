@@ -1,19 +1,19 @@
 class PicturesController < ApplicationController
-  before_action :logged_in_user, only: [:create, :destroy, :new, :edit]
-  before_action :correct_user,   only: [:destroy, :edit]
+  before_action :logged_in_user, only: [:create, :destroy, :new, :edit, :update]
+  before_action :correct_user,   only: [:destroy, :edit, :update]
 
   def new
     @picture = current_user.pictures.new
   end
 
   def create
-    @picture = current_user.pictures.build(picture_params)
+    @picture = current_user.pictures.build(picture_params.merge(user_id: current_user.id))
     @picture.strip_divs
     if @picture.save
       flash.now[:success] = "Picture uploaded successfully!"
       render :show
     else
-      render 'new'
+      render 'new', status: :unprocessable_entity
     end
   end
 
@@ -37,7 +37,7 @@ class PicturesController < ApplicationController
       flash[:success] = "Picture updated"
       redirect_to @picture
     else
-      render 'edit'
+      render 'edit', status: :unprocessable_entity
     end 
   end
 
@@ -51,11 +51,11 @@ class PicturesController < ApplicationController
   private
 
   def picture_params
-    params.require(:picture).permit(:caption, :picture, :user_id)
+    params.require(:picture).permit(:caption, :picture)
   end
 
   def correct_user
-    @picture = Picture.find_by(id: params[:id])
+    @picture = Picture.find(params[:id])
     redirect_to(root_url) unless @picture.user_id == current_user.id || current_user.admin?
   end
 

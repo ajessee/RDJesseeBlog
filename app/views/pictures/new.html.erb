@@ -13,11 +13,11 @@
           <%= f.hidden_field :user_id, value: current_user.id %>
           <div>
             <%= f.label :caption %>
-            <%= f.trix_editor :caption, class: 'form-control' %>
+            <%= plain_html_editor f, :caption, class: 'form-control' %>
           </div>
           <div class="picture">
             <%= f.label "Upload picture" %>
-            <%= f.file_field :picture %>
+            <%= f.file_field :picture, accept: "image/jpeg,image/png,image/gif,image/webp" %>
           </div>
           <br>
           <div class="text-center">

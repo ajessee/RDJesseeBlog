@@ -1,6 +1,8 @@
 ![RDJessee](https://s3.amazonaws.com/andre-pictures/grandpaSigBlack.jpg)
  
 # [Ralph Donald Jessee Blog](https://ralphdonaldjessee.com/) 
+
+Upgrade work: [plan and progress](UPGRADE-PLAN.md) · [local Docker setup](LOCAL-DEVELOPMENT.md).
  
 My grandfather, Ralph 'Don' Jessee, lived most of his life in Lima, Ohio. Late in his life, after his third wife died, his daughter Catherine invited him to live with her in Lafayette, Louisiana. After he moved down there, she enrolled him in a life writing class and much to everyone's surprise, he wrote prolifically. When he died in 2016, he left behind a collection of over 170 stories.
  
@@ -49,3 +51,5 @@ The app is written in Rails 6 and currently deployed in production using Heroku.
 * Add table sorting feature to user admin table, story admin table, tags table
 ### August 2020
 * Update all yarn package and Rails gems 
+
+Production image and runtime configuration: [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md).
