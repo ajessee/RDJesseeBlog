@@ -4,7 +4,7 @@ class StoriesController < ApplicationController
   end
 
   before_action :logged_in_user, only: [:create, :destroy, :new, :edit, :update]
-  before_action :admin_user,   only: [:destroy, :edit, :update]
+  before_action :admin_user, only: [:create, :destroy, :new, :edit, :update]
 
   def new
     @story = Story.new
@@ -135,7 +135,7 @@ class StoriesController < ApplicationController
       flash[:success] = "Story created!"
       redirect_to @story
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -143,7 +143,7 @@ class StoriesController < ApplicationController
     @story = Story.find(delete_params)
     @story.destroy
     flash.now[:success] = "Story deleted"
-    redirect_to request.referrer || root_url
+    redirect_back fallback_location: root_url, allow_other_host: false
   end
 
   private

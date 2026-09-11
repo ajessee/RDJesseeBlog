@@ -28,6 +28,8 @@ group :development do
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console'
   gem 'listen', '~> 3.9'
+  gem 'brakeman', '~> 8.0', require: false
+  gem 'bundler-audit', '~> 0.9', require: false
 end
 
 group :development, :test do

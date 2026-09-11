@@ -13,7 +13,7 @@ class PicturesController < ApplicationController
       flash.now[:success] = "Picture uploaded successfully!"
       render :show
     else
-      render 'new', status: :unprocessable_entity
+      render 'new', status: :unprocessable_content
     end
   end
 
@@ -37,7 +37,7 @@ class PicturesController < ApplicationController
       flash[:success] = "Picture updated"
       redirect_to @picture
     else
-      render 'edit', status: :unprocessable_entity
+      render 'edit', status: :unprocessable_content
     end 
   end
 
@@ -45,7 +45,7 @@ class PicturesController < ApplicationController
     @picture = Picture.find(params[:id])
     @picture.destroy
     flash[:success] = "Picture deleted"
-    redirect_to request.referrer || root_url
+    redirect_back fallback_location: root_url, allow_other_host: false
   end
 
   private

@@ -41,7 +41,7 @@ class UsersController < ApplicationController
       if @user.update(attribute => ActiveModel::Type::Boolean.new.cast(value))
         render plain: 'Change'
       else
-        head :unprocessable_entity
+        head :unprocessable_content
       end
     else
       @user = User.find(params[:id])

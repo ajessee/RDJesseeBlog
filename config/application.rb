@@ -9,10 +9,10 @@ Bundler.require(*Rails.groups)
 
 module RdjesseeBlog
   class Application < Rails::Application
-    # Initialize configuration defaults for originally generated Rails version.
-    config.load_defaults 6.0
-    # No shared cache backend is configured; adopt the format required by Rails 7.2.
-    config.active_support.cache_format_version = 7.1
+    config.load_defaults 8.1
+    # Existing permanent remember-me and session cookies derive their keys with SHA-1.
+    # Retain that derivation until production cookies can be migrated with rotations.
+    config.active_support.key_generator_hash_digest_class = OpenSSL::Digest::SHA1
     # Upload Active Storage blobs before the recording conversion callback reads them.
     config.active_record.run_after_transaction_callbacks_in_order_defined = true
 

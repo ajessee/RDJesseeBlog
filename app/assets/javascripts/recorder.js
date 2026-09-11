@@ -99,7 +99,8 @@
         const caption = document.createElement('p');
         caption.id = 'recording-caption';
         caption.contentEditable = true;
-        caption.textContent = prompt('Enter a caption for your recording:') || 'Recorded memory';
+        caption.textContent = 'Recorded memory';
+        caption.setAttribute('aria-label', 'Recording caption; edit before uploading');
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'btn btn-danger';

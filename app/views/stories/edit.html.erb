@@ -56,7 +56,7 @@
         <% if @story.picture.attached? %>
           <div>
             <h5>If you want to change this thumbnail:</h5>
-            <%= image_tag @story.picture.variant(resize: "200x200", auto_orient: true) %>
+            <%= image_tag @story.picture.variant(resize_to_limit: [200, 200]) %>
             <h5>Upload a new one below</h5>
           </div>
         <% else %>

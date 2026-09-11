@@ -21,8 +21,8 @@ class RecordingsController < ApplicationController
     else
       @recording.errors.add(:audio_file, 'must be selected') unless @recording.audio_file.attached?
       respond_to do |format|
-        format.json { render json: { error: @recording.errors.full_messages.to_sentence }, status: :unprocessable_entity }
-        format.html { render :new, status: :unprocessable_entity }
+        format.json { render json: { error: @recording.errors.full_messages.to_sentence }, status: :unprocessable_content }
+        format.html { render :new, status: :unprocessable_content }
       end
     end
   end
@@ -71,7 +71,7 @@ class RecordingsController < ApplicationController
   def conversion_failed
     message = 'The original audio was saved, but conversion failed. You can retry conversion from the recording page.'
     respond_to do |format|
-      format.json { render json: { error: message, redirect_url: recording_destination }, status: :unprocessable_entity }
+      format.json { render json: { error: message, redirect_url: recording_destination }, status: :unprocessable_content }
       format.html { redirect_to recording_destination, alert: message }
     end
   end

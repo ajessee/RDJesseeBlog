@@ -1,9 +1,22 @@
 require 'rails_helper'
+require 'open3'
 
 RSpec.describe 'Media upload validation' do
   it 'rejects active content uploaded as a picture' do
     picture = Picture.new
     picture.picture.attach(io: StringIO.new('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), filename: 'active.svg', content_type: 'image/svg+xml')
+    expect(picture).not_to be_valid
+    expect(picture.errors[:picture]).to include('has an unsupported file type')
+  end
+
+  it 'rejects an EXR payload named and declared as JPEG' do
+    exr, stderr, status = Open3.capture3('convert', '-size', '2x2', 'xc:black', 'exr:-')
+    raise stderr unless status.success?
+
+    picture = Picture.new
+    picture.picture.attach(io: StringIO.new(exr), filename: 'disguised.jpg', content_type: 'image/jpeg')
+
+    expect(picture.picture.blob.content_type).to eq('image/aces')
     expect(picture).not_to be_valid
     expect(picture.errors[:picture]).to include('has an unsupported file type')
   end

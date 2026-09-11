@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+bundle exec brakeman --no-pager --quiet --exit-on-warn --exit-on-error
+bundle exec bundler-audit check --update
+npm audit --omit=dev --audit-level=high

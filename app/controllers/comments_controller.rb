@@ -31,14 +31,14 @@ class CommentsController < ApplicationController
       redirect_to root_path(anchor: 'guestbook')
     else
       @commentable = @comment.commentable
-      render 'new', status: :unprocessable_entity
+      render 'new', status: :unprocessable_content
     end
   end
 
   def destroy
     @comment.destroy
     flash[:success] = "Comment deleted"
-    redirect_to request.referrer || root_url
+    redirect_back fallback_location: root_url, allow_other_host: false
   end
 
   private

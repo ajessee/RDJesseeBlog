@@ -10,7 +10,7 @@
         <a href="<%= picture_path(picture.id) %>" class="blog_links">
           <div class="col-lg-4 wow fadeIn">
             <div class="thumbnail box-shadow">
-              <% if picture.picture.attached? %> <%= image_tag picture.picture.variant(resize: "500x500", auto_orient: true), alt: "Picture", class:
+              <% if picture.picture.attached? %> <%= image_tag picture.picture.variant(resize_to_limit: [500, 500]), alt: "Picture", class:
             "img-responsive center-picture" %> <% end %>
               <div class="caption text-center">
                 <h5><%= picture.caption %></h5>

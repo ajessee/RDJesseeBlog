@@ -13,7 +13,7 @@ class VideosController < ApplicationController
      flash.now[:success] = "video uploaded successfully!"
      render :show
    else
-     render 'new', status: :unprocessable_entity
+     render 'new', status: :unprocessable_content
    end
   end
 
@@ -37,7 +37,7 @@ class VideosController < ApplicationController
  def destroy
    @video.destroy
    flash[:success] = "Story deleted"
-   redirect_to request.referrer || root_url
+   redirect_back fallback_location: root_url, allow_other_host: false
  end
 
  private

@@ -17,10 +17,41 @@ RSpec.describe 'Write authorization', type: :request do
     expect(response).to redirect_to(login_url)
   end
 
+  it 'blocks non-admins from opening the new story form' do
+    sign_in(reader)
+    get new_story_path
+    expect(response).to redirect_to(root_url)
+  end
+
+  it 'blocks non-admin story creation' do
+    sign_in(reader)
+    expect do
+      post stories_path, params: { story: { title: 'Unauthorized story', content: 'No access' } }
+    end.not_to change(Story, :count)
+    expect(response).to redirect_to(root_url)
+  end
+
+  it 'attributes an admin-created story to the signed-in admin' do
+    sign_in(admin)
+    expect do
+      post stories_path, params: { story: { title: 'Authorized story', content: 'A memory', user_id: owner.id } }
+    end.to change(Story, :count).by(1)
+    expect(response).to redirect_to(story_path(Story.last))
+    expect(Story.last.user).to eq(admin)
+  end
+
   it 'blocks non-admin story updates' do
     sign_in(reader)
     patch story_path(123), params: { story: { title: 'Changed' } }
     expect(response).to redirect_to(root_url)
+  end
+
+  it 'blocks non-admin story deletion' do
+    story = Story.create!(user: owner, title: 'Original', content: 'A memory')
+    sign_in(reader)
+    delete story_path(story)
+    expect(response).to redirect_to(root_url)
+    expect(Story.exists?(story.id)).to be(true)
   end
 
   it 'blocks updates to another user profile' do
@@ -71,6 +102,13 @@ RSpec.describe 'Write authorization', type: :request do
     expect(response).to redirect_to(picture)
     expect(picture.reload.caption).to eq('Changed')
     expect(picture.user_id).to eq(owner.id)
+  end
+
+  it 'blocks another user from deleting a picture' do
+    sign_in(reader)
+    delete picture_path(picture)
+    expect(response).to redirect_to(root_url)
+    expect(Picture.exists?(picture.id)).to be(true)
   end
 
   [:recording, :video].each do |kind|
@@ -130,6 +168,21 @@ RSpec.describe 'Write authorization', type: :request do
     patch comment_path(comment), params: { comment: { content: 'Changed' } }
     expect(response).to redirect_to(root_url)
     expect(comment.reload.content).to eq('Original')
+  end
+
+  it 'blocks another user from deleting a comment' do
+    comment = Comment.create!(author: owner, commentable: owner, content: 'Original')
+    sign_in(reader)
+    delete comment_path(comment)
+    expect(response).to redirect_to(root_url)
+    expect(Comment.exists?(comment.id)).to be(true)
+  end
+
+  it 'blocks non-admin user deletion' do
+    sign_in(reader)
+    delete user_path(owner)
+    expect(response).to redirect_to(root_url)
+    expect(User.exists?(owner.id)).to be(true)
   end
 
   it 'attributes a personal recording to the signed-in user' do

@@ -26,7 +26,7 @@ docker compose run --rm -e RAILS_ENV=test web bundle exec rspec spec/requests/up
 
 RSpec refuses an explicit non-test environment or inherited `DATABASE_URL`. Development and test databases have different names. Schema loading is for disposable local databases only. Coverage output goes to ignored `tmp/coverage` instead of rewriting historical committed reports.
 
-Bootsnap is updated and enabled. The image uses Bundler 4.0.16, Node 24 and Debian Trixie, with ffmpeg, ImageMagick and libvips installed explicitly. Ruby 4.0.6 and the updated dependency set pass 131 examples with zero failures and 29 inherited placeholders, plus autoloading checks. Tests exercise real audio conversion and image resizing. The production image is documented in [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md).
+Bootsnap is updated and enabled. The image uses Bundler 4.0.16, Node 24 and Debian Trixie, with ffmpeg, ImageMagick and libvips installed explicitly. Ruby 4.0.6 and the updated dependency set pass 144 examples with zero failures and 29 inherited placeholders, plus autoloading and asset-compilation checks. Tests exercise authorization boundaries, Rails-default cookie and redirect compatibility, real audio conversion, libvips image resizing, and rejection of a real EXR payload disguised as an allowed JPEG upload. The production image is documented in [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md).
 
 Stop local services without deleting data:
 
@@ -46,6 +46,34 @@ Test-environment asset compilation also passes:
 docker compose run --rm -e RAILS_ENV=test web bundle exec rails assets:precompile
 ```
 
-The rebuilt development image also boots Puma and returns HTTP 200 for `/`, `/blog`, `/stories`, `/login`, `/pictures`, `/recordings`, and `/videos`. The production image also builds assets with networking disabled and has passed local non-root HTTP and media-tool smoke checks. Local browser login, formatted story creation and WAV upload/conversion passed using synthetic data. Microphone capture, actual playback, mobile layouts and production S3/SendGrid integration remain unverified. Rails application defaults remain at 6.0, with the 7.1 cache format and declaration-order transaction callbacks explicitly enabled; Rails 8.1 supplies modern timezone conversion behavior. Cookie/signature and media defaults still require compatibility checks. Development and test secrets are generated locally by Rails; production must retain the existing Heroku `SECRET_KEY_BASE`.
+## Security scans
+
+The application scanners are locked development dependencies and run through one CI-friendly command:
+
+```sh
+docker compose build web
+docker compose run --rm --no-deps web bin/security-scan
+```
+
+This runs Brakeman, updates and runs Bundler Audit, and runs npm audit at high severity. Advisory updates require network access; the application itself still uses isolated local services. The security gems are in the development group and are excluded from the production image.
+
+Scan the exact production image separately after a fresh package build:
+
+```sh
+docker build --pull --no-cache -t rdjessee-production:local .
+bin/container-security-scan rdjessee-production:local
+```
+
+Docker Scout must be installed and able to update its vulnerability data. The container command intentionally exits nonzero for high or critical findings; investigate and document findings rather than weakening the gate.
+
+Build the deployment architecture explicitly when it differs from the development host:
+
+```sh
+docker build --platform linux/amd64 -t rdjessee-production:amd64 .
+```
+
+The amd64 image has been built and executed under Docker Desktop emulation. Rails eager loading, libvips resizing, ffmpeg, OpenSSL, the non-root user, and isolated HTTP boot all pass. Emulation verifies image portability and native x86-64 artifacts, but it is not a performance test on native x86 hardware.
+
+The rebuilt development image also boots Puma and returns HTTP 200 for `/`, `/blog`, `/stories`, `/login`, `/pictures`, `/recordings`, and `/videos`. The production image also builds assets with networking disabled and has passed local non-root HTTP and media-tool smoke checks. Local browser login, formatted story creation and WAV upload/conversion passed using synthetic data. At 1280x720 and 390x844, the public home, blog, stories, pictures, recordings and login pages had no document-level horizontal overflow or broken images; the mobile menu works, audio controls fit, and a stored converted recording began playback. Mobile recordings spacing was corrected so its heading clears the fixed navigation. Browser microphone start/stop now creates an inline preview with an editable default caption without using a blocking prompt. The in-app browser's synthetic microphone blob was not decodable by either its preview or ffmpeg; submitting it exercised the expected preserved-original/retry failure path, but successful capture and playback from real device hardware remain unverified. Production S3/SendGrid integration also remains unverified. Rails application defaults now load 8.1; libvips image variants, sessions, remembered login, legacy signed cookies and same-host return URLs have focused compatibility coverage. Cookie-key derivation remains SHA-1 temporarily so existing permanent production cookies stay readable; changing it to the Rails 8.1 SHA-256 default requires a tested rotation. Development and test secrets are generated locally by Rails; production must retain the existing Heroku `SECRET_KEY_BASE`.
 
 See [UPGRADE-PLAN.md](UPGRADE-PLAN.md) for the full sequence. Heroku and production data have not been changed.

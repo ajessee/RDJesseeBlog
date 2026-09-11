@@ -4,7 +4,7 @@ FROM node:24-trixie AS node
 FROM ruby:${RUBY_VERSION}-slim-trixie AS base
 WORKDIR /app
 RUN apt-get update -qq && apt-get install --no-install-recommends -y \
-    ca-certificates curl ffmpeg imagemagick libpq5 libvips42 tzdata \
+    ca-certificates curl ffmpeg libpq5 libvips42 openssl tzdata \
     && rm -rf /var/lib/apt/lists/*
 ENV RAILS_ENV=production BUNDLE_PATH=/usr/local/bundle \
     BUNDLE_WITHOUT=development:test RAILS_LOG_TO_STDOUT=1 RAILS_SERVE_STATIC_FILES=1
