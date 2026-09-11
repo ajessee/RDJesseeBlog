@@ -67,6 +67,10 @@ class User < ApplicationRecord
     UserMailer.password_reset(self).deliver_now
   end
 
+  def clear_reset_digest
+    update_columns(reset_digest: nil, reset_sent_at: nil)
+  end
+
   # Returns true if a password reset has expired.
   def password_reset_expired?
     reset_sent_at < 2.hours.ago
