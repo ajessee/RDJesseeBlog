@@ -6,7 +6,7 @@ Updated September 12, 2026. This is a narrow, temporary acceptance for the curre
 
 Docker Scout's focused refresh of `rdjessee-production:local` (`sha256:ccd1a5f54812`, Linux ARM64, 742 indexed packages) reports 0 critical and 25 high findings in six packages:
 
-The mitigated image was then rebuilt as `sha256:1fb020ffb52b`. Its final non-root runtime (UID 1000) boots Rails 8.1.3.1 with libvips 8.16.1, loads all four accepted image formats, and blocks OpenEXR. The rebuild reused the scanned system and gem installation layers and changed application/assets layers. A new Docker Scout upload was not authorized because it transmits SBOM metadata externally, so the 25-finding report remains the package baseline rather than a claimed scan of the new digest. Obtain explicit approval and scan the exact digest before deployment.
+The mitigated image was then rebuilt as `sha256:1fb020ffb52b`. Its final non-root runtime (UID 1000) boots Rails 8.1.3.1 with libvips 8.16.1, loads all four accepted image formats, and blocks OpenEXR. The rebuild reused the scanned system and gem installation layers and changed application/assets layers. A new Docker Scout upload was not authorized because it transmits SBOM metadata externally, so the 25-finding report remains the package baseline rather than a claimed scan of the new digest. The user later authorized a direct Heroku buildpack deployment while skipping staging; production `v169` therefore does not satisfy an exact Docker-image scan gate and must not be described as though it does. Obtain explicit approval before any future external SBOM upload.
 
 | Package | High findings | Application exposure |
 | --- | ---: | --- |

@@ -1,19 +1,19 @@
-# Heroku deployment readiness
+# Heroku deployment record and remaining validation
 
-Updated September 11, 2026. This is a rollout plan, not authorization to change production. Do not run mutation, backup, migration, or deployment commands until their production window is explicitly approved.
+Updated September 12, 2026. The user explicitly authorized skipping staging, creating a fresh production database backup, correcting the production configuration/buildpacks, and deploying. Release `v169` from commit `6a8993e` is live on `heroku-24`. This authorization was for this rollout; it is not standing authorization for future production mutations.
 
 ## Verified current state
 
 - App: `rdjessee`, Cedar generation, US region, one Basic web dyno.
-- The running slug is on `heroku-20`; the already-selected next-build stack is `heroku-24`. The first new build will therefore change both the application and its OS stack.
+- The running slug is release `v169` on `heroku-24`; pre-rollout application code was represented by the older slug retained through release `v165`.
 - The production database contains the same 44 migration versions as this branch. There are no application migrations waiting to run at this checkpoint.
 - The custom domain is `www.ralphdonaldjessee.com`, and Automatic Certificate Management is enabled.
-- Existing config includes the database, S3, Searchbox, SendGrid, Rails master key, and stable `SECRET_KEY_BASE` settings. Only config-key names were inspected. Turnstile keys are not configured on Heroku.
+- Existing config includes the database, S3, Searchbox, SendGrid, Rails master key, stable `SECRET_KEY_BASE`, and the three Turnstile settings. Secret values are not committed or documented.
 - The free Cloudflare widget `RDJesseeBlog production signup` now exists in Managed mode, restricted to `www.ralphdonaldjessee.com`, with pre-clearance disabled. Its secret remains in Cloudflare and must not be committed.
 
-## Buildpack correction required before the release build
+## Applied buildpack correction
 
-The current order is:
+The former order was:
 
 1. Heroku's Active Storage preview buildpack
 2. `jonathanong/heroku-buildpack-ffmpeg-latest`
@@ -21,27 +21,36 @@ The current order is:
 
 The second buildpack is unmaintained and explicitly recommends Heroku's Active Storage preview buildpack, which is already installed and supplies ffmpeg. Remove the duplicate. The application now loads Trix from `node_modules`, so add the official Node.js buildpack before Ruby; with the checked-in `package-lock.json`, it uses `npm ci`.
 
-The intended order for the candidate build is:
+The deployed order is:
 
 1. `https://github.com/heroku/heroku-buildpack-activestorage-preview`
 2. `heroku/nodejs`
 3. `heroku/ruby`
 
-Apply these remote changes only as part of an authorized staging or production rollout. After the build, verify `ruby -v`, `bundle -v`, `node -v`, `ffmpeg -version`, `ffprobe -version`, and that Ruby can load libvips. Heroku currently supports Ruby 4.0.6 and Bundler 4.0.16. Its `heroku-24` base contains libvips 8.15.1, and the official preview buildpack supplies ffmpeg 7.1.3. This is close to the locally tested ffmpeg 7.1.5 candidate but still requires a real conversion check.
+The release build installed FFmpeg 7.1.3, Node 24.21.0, Ruby 4.0.6, Bundler 4.0.16, and x86-64 native gems, and completed Rails asset precompilation. Puma's live boot log confirms Rails 8.1.3.1 and Ruby 4.0.6 on x86-64 Linux. Direct runtime `node`, `ffprobe`, and libvips checks plus a real production conversion remain outstanding; avoid a metered one-off dyno unless explicitly approved.
 
 Use `heroku-24` for the first controlled release rather than adding a simultaneous move to `heroku-26`. Heroku-26 is supported, but Heroku recommends changing runtime, framework, and stack incrementally; move again after the Rails 8.1 release stabilizes.
 
 Sources: [Heroku Ruby support](https://devcenter.heroku.com/articles/ruby-support-reference), [Active Storage preview buildpack](https://github.com/heroku/heroku-buildpack-activestorage-preview), [Node.js classic build behavior](https://devcenter.heroku.com/articles/nodejs-classic-buildpack-builds), [Heroku stack packages](https://devcenter.heroku.com/articles/stack-packages), and [Heroku-26 availability](https://devcenter.heroku.com/changelog-items/3703).
 
-## Controlled rollout order
+## Production rollout result
 
-1. Reconfirm the temporary container-risk acceptance in [SECURITY-ACCEPTANCE.md](SECURITY-ACCEPTANCE.md) against a freshly built candidate. The real-device microphone check passes locally.
-2. Prefer a separate preview/staging app with isolated database, object storage, search, and non-delivering email. Provision nothing paid without approval.
-3. Apply the buildpack correction to the chosen candidate app and build on `heroku-24`.
-4. Configure `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, and `TURNSTILE_HOSTNAME=www.ralphdonaldjessee.com` from the Cloudflare widget. Setting production config creates a release/restart, so defer it to the approved window.
-5. Run the test suite, security scans, production asset compilation, `/up` smoke check, association audit, and synthetic image/audio conversion against the exact candidate.
-6. Arrange and verify fresh database and media backups. The earlier production backup command was declined; request authorization again rather than assuming it.
-7. Record the current release identifier, deploy, and verify the public route set, TLS/assets, login/logout, admin edits, search, comments, images, audio upload/conversion/playback, S3, SendGrid, and both accepted/rejected Turnstile flows.
-8. Roll back the application release immediately if validation fails. A Heroku release rollback does not undo database or external-media changes. This checkpoint has no pending migrations, which reduces but does not eliminate rollback risk.
+- Manual database backup `b037` completed immediately before the release. Continuous database protection also reports enabled, but restoration has not been tested and S3 media backup completeness is not established.
+- Turnstile configuration releases were `v166` through `v168`; the application deploy is `v169` from commit `6a8993e`.
+- Heroku built on `heroku-24` with the corrected buildpack order and released successfully. The Basic web dyno reached `up` without a crash.
+- The custom HTTPS domain returned 200 for `/up`, `/`, `/stories`, `/pictures`, `/recordings`, `/videos`, and `/signup`. The fingerprinted application CSS and JavaScript returned 200.
+- The live signup page preserved the site's responsive visual identity and displayed a successful Cloudflare Turnstile widget. No account was created and no email was sent during this read-only rendering check.
+- An existing Active Storage recording followed its signed redirect and returned a 1024-byte ranged response with HTTP 206 and `audio/mp4`, verifying production database-to-S3 media delivery.
+- Focused logs after the release show successful Rails 8.1.3.1 / Ruby 4.0.6 boot and successful checks, with no matching 5xx, crash, error, or fatal entries.
+- No migration command ran: production and the branch had the same 44 migration versions. No seeds or `db:prepare` ran.
+
+## Remaining controlled validation
+
+1. Observe `v169`; roll back the application release if a production regression appears. A Heroku release rollback does not undo database or external-media changes.
+2. With controlled synthetic data and explicit awareness of outbound effects, check login/logout, a reversible admin edit, tags/filtering/search, comments, an image, audio upload/conversion/playback, SendGrid, and both accepted/rejected Turnstile submissions.
+3. Test database-backup restoration in isolation and verify the independent media-backup story.
+4. Run direct runtime ffprobe/libvips checks only after approving a metered one-off dyno, or cover them through the next normal release workflow.
+5. Remove the Heroku-warning-producing `bin/bundle` binstub and consider an explicit `Procfile` as a later focused release. Neither warning prevented `v169` from building or booting.
+6. The exact mitigated Docker image digest did not receive a new external Scout upload. Keep the prior package-layer result and temporary acceptance explicit; do not claim it is a scan of the deployed buildpack slug.
 
 Do not use seeds or `db:prepare` against production.
