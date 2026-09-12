@@ -15,6 +15,9 @@ services:
       PGUSER: postgres
       PGPASSWORD: local-development-only
       ELASTICSEARCH_URL: http://search:9200
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      TURNSTILE_HOSTNAME: ${TURNSTILE_HOSTNAME:-}
     depends_on:
       db:
         condition: service_healthy

@@ -17,6 +17,11 @@ class UsersController < ApplicationController
 
   def create
     @user = User.new(user_params)
+    unless turnstile_verified?
+      @user.errors.add(:base, 'Please verify that you are human and try again.')
+      return render 'new', status: :unprocessable_content
+    end
+
     if @user.save
       @user.send_activation_email
       flash[:info] = "Please check your email to activate your account."
@@ -64,6 +69,13 @@ class UsersController < ApplicationController
 
     def user_params
       params.require(:user).permit(:name, :email, :password, :password_confirmation)
+    end
+
+    def turnstile_verified?
+      TurnstileVerifier.new.verify(
+        token: params['cf-turnstile-response'],
+        remote_ip: request.remote_ip
+      )
     end
 
     #before filters

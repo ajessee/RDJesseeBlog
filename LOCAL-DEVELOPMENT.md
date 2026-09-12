@@ -26,7 +26,7 @@ docker compose run --rm -e RAILS_ENV=test web bundle exec rspec spec/requests/up
 
 RSpec refuses an explicit non-test environment or inherited `DATABASE_URL`. Development and test databases have different names. Schema loading is for disposable local databases only. Coverage output goes to ignored `tmp/coverage` instead of rewriting historical committed reports.
 
-Bootsnap is updated and enabled. The image uses Bundler 4.0.16, Node 24 and Debian Trixie, with ffmpeg, ImageMagick and libvips installed explicitly. Ruby 4.0.6 and the updated dependency set pass 155 examples with zero failures and 29 inherited placeholders, plus autoloading and asset-compilation checks. Tests exercise authorization boundaries, required associations, Rails-default cookie, redirect and CSRF compatibility, account activation and single-use password recovery with non-delivering mail, real WAV and browser-style WebM/Opus conversion, libvips image resizing, and rejection of a real EXR payload disguised as an allowed JPEG upload. The production image is documented in [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md).
+Bootsnap is updated and enabled. The image uses Bundler 4.0.16, Node 24 and Debian Trixie, with ffmpeg, ImageMagick and libvips installed explicitly. Ruby 4.0.6 and the updated dependency set pass 161 examples with zero failures and 29 inherited placeholders, plus autoloading and asset-compilation checks. Tests exercise authorization boundaries, required associations, Rails-default cookie, redirect and CSRF compatibility, signup-abuse prevention, account activation and single-use password recovery with non-delivering mail, real WAV and browser-style WebM/Opus conversion, libvips image resizing, and rejection of a real EXR payload disguised as an allowed JPEG upload. The production image is documented in [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md).
 
 Stop local services without deleting data:
 
@@ -53,6 +53,18 @@ docker compose run --rm web bin/association-audit
 ```
 
 This read-only command exits nonzero for required null owners/parents, orphaned references, or unexpected polymorphic types. It reports missing `Recording#recorder` values separately as an allowed legacy condition. It passes against the isolated synthetic development database. An authorized September 11 production query found no other invalid associations; all 39 historical recordings have valid parents but lack uploader/recorder attribution. The tracked May 2018 `dump.sql` predates those recordings and was not used as current deployment evidence.
+
+## Signup verification
+
+Turnstile is optional in development and test, but production signup fails closed without a configured secret. To exercise the widget locally, export Cloudflare's published always-pass test keys before starting Compose:
+
+```sh
+export TURNSTILE_SITE_KEY=1x00000000000000000000AA
+export TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+docker compose up web
+```
+
+Do not set `TURNSTILE_HOSTNAME` with Cloudflare's dummy test credentials. Production requires a real hostname-restricted widget and `TURNSTILE_HOSTNAME=www.ralphdonaldjessee.com`. Verification uses short connection/read timeouts and rejects missing, failed, malformed, and wrong-host responses.
 
 ## Security scans
 

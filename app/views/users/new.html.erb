@@ -41,6 +41,10 @@
           <%= f.password_field :password_confirmation, class: 'form-control', placeholder: "Please confirm password" %>
           </div>
         </div>
+        <% if ENV['TURNSTILE_SITE_KEY'].present? %>
+          <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+          <div class="cf-turnstile" data-sitekey="<%= ENV['TURNSTILE_SITE_KEY'] %>" data-size="flexible"></div>
+        <% end %>
         <br>
         <div id="success"></div>
         <div class="row">
@@ -53,5 +57,4 @@
    </div>
 
  </section>
-
 
