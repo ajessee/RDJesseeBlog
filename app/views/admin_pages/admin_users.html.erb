@@ -16,6 +16,7 @@
         <th class="text-center">Delete</th>
         <th class="text-center">Date Created</th>
         <th class="text-center">Date Updated</th>
+        <th class="text-center">Last Login</th>
       </tr>
       <% @users.each do |user| %>
       <tr>
@@ -38,6 +39,7 @@
                                   data: { confirm: "There is no good reason for you to be deleting users. Are you sure?" } %></td>
           <td><%= time_ago_in_words(user.created_at)%> ago</td>
           <td><%= time_ago_in_words(user.updated_at)%> ago</td>
+          <td><%= user.last_login_at ? "#{time_ago_in_words(user.last_login_at)} ago" : "Never" %></td>
         </tr>
         <% end %>
       </table>

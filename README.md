@@ -27,7 +27,7 @@ The app is written in Rails 8.1 and currently deployed in production using Herok
 * Guestbook to allow users to leave memories or comments of Don on the main page
 * Parallax scrolling
 * HTTPS secure connection to protect sensitive user data
-* Secure user sign-in with administrative panel to manage users and stories
+* Secure user sign-in with administrative panel to manage users and stories, including each user's last login time
 * User activation email upon user sign-up to ensure that user owns email address
 * Automatic password reset feature via email
 * Cloudflare Turnstile bot protection on signup, enforced server-side
@@ -47,6 +47,10 @@ The app is written in Rails 8.1 and currently deployed in production using Herok
 * Security scanning via Brakeman (static analysis), bundler-audit and npm audit (dependency CVEs), and Docker Scout (OS/image CVEs) — see [SECURITY-ACCEPTANCE.md](SECURITY-ACCEPTANCE.md) for current accepted findings
 
 ## Change Log
+
+### September 2026 — Last login tracking
+* Added a `last_login_at` column to users, set on every password login and every remember-cookie re-authentication
+* Admin user table now shows each user's last login ("Never" if they haven't logged in since this was added); no historical login data existed before this, in the database or in Heroku's logs
 
 ### September 2026 — Rails 6.1 → 8.1 modernization
 * Upgraded Rails 6.1.3 → 8.1.3.1 and Ruby 3.0.0 → 4.0.6 through every intermediate major version (7.0, 7.1, 7.2, 8.0), adopting each version's framework defaults along the way rather than just bumping the gem
