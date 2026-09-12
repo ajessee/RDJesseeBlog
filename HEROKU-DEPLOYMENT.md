@@ -35,7 +35,7 @@ Sources: [Heroku Ruby support](https://devcenter.heroku.com/articles/ruby-suppor
 
 ## Controlled rollout order
 
-1. Complete the real-device microphone check and explicitly accept or further mitigate the documented no-fix image-library findings.
+1. Explicitly accept or further mitigate the documented no-fix image-library findings. The real-device microphone check now passes locally.
 2. Prefer a separate preview/staging app with isolated database, object storage, search, and non-delivering email. Provision nothing paid without approval.
 3. Apply the buildpack correction to the chosen candidate app and build on `heroku-24`.
 4. Configure `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, and `TURNSTILE_HOSTNAME=www.ralphdonaldjessee.com` from the Cloudflare widget. Setting production config creates a release/restart, so defer it to the approved window.
