@@ -6,7 +6,9 @@ class Recording < ApplicationRecord
   validate_media_upload :audio_file, types: MediaUploadValidation::AUDIO_TYPES, maximum: 200.megabytes
   class AudioConversionError < StandardError; end
 
-  belongs_to :recorder, class_name: 'User', foreign_key: :user_id
+  # All 39 pre-upgrade production recordings lack user_id. Their parents are
+  # intact, but parent ownership does not prove who recorded or uploaded them.
+  belongs_to :recorder, class_name: 'User', foreign_key: :user_id, optional: true
   belongs_to :recordable, polymorphic: true
   has_one_attached :audio_file
   after_create_commit :process_audio!

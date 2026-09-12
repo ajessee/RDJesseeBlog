@@ -1,0 +1,95 @@
+#!/usr/bin/env ruby
+
+require_relative '../config/environment'
+
+class AssociationAudit
+  DIRECT_ASSOCIATIONS = {
+    Story => %i[user],
+    Comment => %i[author],
+    Picture => %i[photographer],
+    Video => %i[photographer],
+    Tagging => %i[story tag]
+  }.freeze
+
+  OPTIONAL_DIRECT_ASSOCIATIONS = {
+    Recording => %i[recorder]
+  }.freeze
+
+  POLYMORPHIC_ASSOCIATIONS = {
+    [Comment, :commentable] => %w[User Story Picture Video Comment],
+    [Picture, :imageable] => %w[User Story],
+    [Recording, :recordable] => %w[User Story],
+    [Video, :videoable] => %w[User Story]
+  }.freeze
+
+  def run
+    puts "Association integrity audit (#{Rails.env}, read-only)"
+
+    required_findings = direct_findings
+    optional_findings = optional_direct_findings
+    findings = required_findings + optional_findings + polymorphic_findings
+    findings.each do |name, counts|
+      puts "#{name}: #{counts.map { |key, value| "#{key}=#{value}" }.join(' ')}"
+    end
+
+    failures = (required_findings + polymorphic_findings).sum { |_name, counts| counts.values.sum }
+    failures += optional_findings.sum { |_name, counts| counts.fetch(:orphan) }
+    abort "Association integrity audit failed with #{failures} invalid reference(s)" if failures.positive?
+
+    puts 'Association integrity audit passed'
+  end
+
+  private
+
+  def direct_findings
+    DIRECT_ASSOCIATIONS.flat_map do |model, associations|
+      associations.map do |association|
+        reflection = model.reflect_on_association(association)
+        foreign_key = reflection.foreign_key
+        target = reflection.klass
+        counts = {
+          null: model.where(foreign_key => nil).count,
+          orphan: model.where.not(foreign_key => nil)
+                       .where.not(foreign_key => target.select(target.primary_key)).count
+        }
+        ["#{model.name}.#{association}", counts]
+      end
+    end
+  end
+
+  def polymorphic_findings
+    POLYMORPHIC_ASSOCIATIONS.map do |(model, association), allowed_types|
+      reflection = model.reflect_on_association(association)
+      foreign_key = reflection.foreign_key
+      foreign_type = reflection.foreign_type
+      missing = model.where(foreign_key => nil).or(model.where(foreign_type => nil)).count
+      invalid_type = model.where.not(foreign_type => nil)
+                          .where.not(foreign_type => allowed_types).count
+      orphan = allowed_types.sum do |type|
+        target = type.constantize
+        model.where(foreign_type => type).where.not(foreign_key => nil)
+             .where.not(foreign_key => target.select(target.primary_key)).count
+      end
+
+      ["#{model.name}.#{association}", { missing: missing, orphan: orphan, invalid_type: invalid_type }]
+    end
+  end
+
+  def optional_direct_findings
+    OPTIONAL_DIRECT_ASSOCIATIONS.flat_map do |model, associations|
+      associations.map do |association|
+        reflection = model.reflect_on_association(association)
+        foreign_key = reflection.foreign_key
+        target = reflection.klass
+        counts = {
+          allowed_missing: model.where(foreign_key => nil).count,
+          orphan: model.where.not(foreign_key => nil)
+                       .where.not(foreign_key => target.select(target.primary_key)).count
+        }
+        ["#{model.name}.#{association}", counts]
+      end
+    end
+  end
+end
+
+AssociationAudit.new.run
