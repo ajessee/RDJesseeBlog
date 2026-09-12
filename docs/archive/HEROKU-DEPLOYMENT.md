@@ -1,5 +1,7 @@
 # Heroku deployment record and remaining validation
 
+> **Archived.** Point-in-time record of the `v169` production rollout. For current outstanding work, see [ROADMAP.md](../development/ROADMAP.md).
+
 Updated September 12, 2026. The user explicitly authorized skipping staging, creating a fresh production database backup, correcting the production configuration/buildpacks, and deploying. Release `v169` from commit `6a8993e` is live on `heroku-24`. This authorization was for this rollout; it is not standing authorization for future production mutations.
 
 ## Verified current state
@@ -44,13 +46,8 @@ Sources: [Heroku Ruby support](https://devcenter.heroku.com/articles/ruby-suppor
 - Focused logs after the release show successful Rails 8.1.3.1 / Ruby 4.0.6 boot and successful checks, with no matching 5xx, crash, error, or fatal entries.
 - No migration command ran: production and the branch had the same 44 migration versions. No seeds or `db:prepare` ran.
 
-## Remaining controlled validation
+## Outstanding follow-up work
 
-1. Observe `v169`; roll back the application release if a production regression appears. A Heroku release rollback does not undo database or external-media changes.
-2. With controlled synthetic data and explicit awareness of outbound effects, check login/logout, a reversible admin edit, tags/filtering/search, comments, an image, audio upload/conversion/playback, SendGrid, and both accepted/rejected Turnstile submissions.
-3. Test database-backup restoration in isolation and verify the independent media-backup story.
-4. Run direct runtime ffprobe/libvips checks only after approving a metered one-off dyno, or cover them through the next normal release workflow.
-5. Remove the Heroku-warning-producing `bin/bundle` binstub and consider an explicit `Procfile` as a later focused release. Neither warning prevented `v169` from building or booting.
-6. The exact mitigated Docker image digest did not receive a new external Scout upload. Keep the prior package-layer result and temporary acceptance explicit; do not claim it is a scan of the deployed buildpack slug.
+Tracked in [ROADMAP.md](../development/ROADMAP.md) rather than duplicated here. (Item 5 from the original list — removing `bin/bundle` and adding a `Procfile` — was completed 2026-09-12.) This document remains the historical record of what was open immediately after the `v169` rollout.
 
 Do not use seeds or `db:prepare` against production.

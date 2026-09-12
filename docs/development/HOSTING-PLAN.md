@@ -4,7 +4,7 @@ Assessment date: September 9, 2026. Repository reviewed at `ea0eec7`.
 
 ## Current direction
 
-The active plan is [UPGRADE-PLAN.md](UPGRADE-PLAN.md): modernize both RDJesseeBlog and BigDumbWebDev on Heroku, add tested Docker support, and consider RDJesseeBlog static conversion only after both upgrades stabilize. The options below are retained as research for that later decision, not the current implementation order.
+RDJesseeBlog's Rails 6.1 → 8.1 upgrade (see [../archive/UPGRADE-PLAN.md](../archive/UPGRADE-PLAN.md)) is complete and deployed. BigDumbWebDev's equivalent upgrade has not started — see [ROADMAP.md](ROADMAP.md). The options below are retained as research for the later static-conversion decision, not a current implementation order.
 
 No application upgrades or production changes have been made. Docker deployment alone would not reduce Heroku dyno/database charges.
 

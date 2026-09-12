@@ -2,7 +2,7 @@
  
 # [Ralph Donald Jessee Blog](https://ralphdonaldjessee.com/) 
 
-Upgrade work: [plan and progress](UPGRADE-PLAN.md) · [local Docker setup](LOCAL-DEVELOPMENT.md) · [production Docker image](PRODUCTION-DOCKER.md) · [Heroku deployment](HEROKU-DEPLOYMENT.md) · [security posture](SECURITY-ACCEPTANCE.md).
+Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
  
 My grandfather, Ralph 'Don' Jessee, lived most of his life in Lima, Ohio. Late in his life, after his third wife died, his daughter Catherine invited him to live with her in Lafayette, Louisiana. After he moved down there, she enrolled him in a life writing class and much to everyone's surprise, he wrote prolifically. When he died in 2016, he left behind a collection of over 170 stories.
  
@@ -44,7 +44,7 @@ The app is written in Rails 8.1 and currently deployed in production using Herok
 * Uses Google Analytics to monitor and analyze traffic, bounce rates, and page views
 * Uses Bootstrap framework for front end design
 * Uses Elasticsearch (Searchbox) for full-text story search
-* Security scanning via Brakeman (static analysis), bundler-audit and npm audit (dependency CVEs), and Docker Scout (OS/image CVEs) — see [SECURITY-ACCEPTANCE.md](SECURITY-ACCEPTANCE.md) for current accepted findings
+* Security scanning via Brakeman (static analysis), bundler-audit and npm audit (dependency CVEs), and Docker Scout (OS/image CVEs) — see [docs/development/SECURITY-ACCEPTANCE.md](docs/development/SECURITY-ACCEPTANCE.md) for current accepted findings
 
 ## Change Log
 
