@@ -1,14 +1,14 @@
 # Static archive cutover and Heroku rollback
 
-Updated November 13, 2026. This runbook describes the proposed production release and recovery path. It is not a record that the production cutover has happened.
+Updated November 13, 2026 after the production Pages release and `www` cutover. This runbook records the release and the DNS-only recovery path.
 
 ## Current checkpoint
 
-- The live `www.ralphdonaldjessee.com` hostname still points to Heroku at `www.ralphdonaldjessee.com.herokudns.com` (TTL 1 hour). The Heroku app and database have not been removed.
-- The Cloudflare Pages project is `rdjessee-blog-preview` and uses direct uploads, with no Git integration. The reviewed conversion preview is `https://codex-static-site-conversion.rdjessee-blog-preview.pages.dev/`.
-- `preview.ralphdonaldjessee.com` now has an active Cloudflare custom-domain association and SSL, and serves the converted archive. `www.ralphdonaldjessee.com` is also associated with the Pages project but is inactive while DNS remains on Heroku.
+- `www.ralphdonaldjessee.com` now points to Cloudflare Pages at `rdjessee-blog-preview.pages.dev` (TTL 1 hour). Cloudflare reports the custom domain Active with SSL enabled; public HTTPS checks return the converted site. The Heroku app and database remain available for rollback.
+- The Cloudflare Pages project is `rdjessee-blog-preview` and uses direct uploads, with no Git integration. The production deployment is `https://13c81490.rdjessee-blog-preview.pages.dev/`; its configured production branch is `master`. The review preview is `https://codex-static-site-conversion.rdjessee-blog-preview.pages.dev/`.
+- Both `preview.ralphdonaldjessee.com` and `www.ralphdonaldjessee.com` have active Cloudflare custom-domain associations with SSL enabled, and serve the converted archive.
 - Squarespace manages DNS records; the authoritative nameservers are Google Cloud DNS. The apex redirect, nameservers, email records, and DNSSEC were not changed.
-- The site source is on `codex/static-site-conversion`. The conversion work currently includes uncommitted and untracked files; it has not been committed or merged. Check `git status` before preparing a release.
+- The release source is merged into local `master` at `164f1e5` (`Build static archive conversion for Cloudflare Pages`); `master` is one commit ahead of `origin/master`. The untracked `BLOG-POST-DRAFT.md` was not uploaded. Check Git status before future release work.
 - The static archive is read-only. The conversion does not include Rails sign-in, uploads, comments, or admin editing. Existing records are exported; new or corrected content would require a later owner-approved export and deployment.
 
 ## What the conversion changes
@@ -21,7 +21,7 @@ The CloudFront distribution `E1KFB1NQNA9XY4` serves the 111 media objects in the
 
 ## Release procedure
 
-Complete each gate in order. Do not change the live `www` DNS record until the converted build is deployed to the Pages production branch and has passed the checks below.
+The initial production release completed on November 13, 2026. Preserve the sequence below for future static releases; the `www` CNAME now points to Pages.
 
 1. **Commit and inspect the source.** Review the conversion diff, remove unintended files, and commit the approved work on `codex/static-site-conversion`. Confirm the resulting branch and `master` relationship before merging. Do not merge unreviewed local changes.
 2. **Capture a fresh database backup.** Confirm a recent Heroku PostgreSQL backup completed successfully. Preserve its identifier and verify the existing local restore is separate from the development database. If production content changed since the restore, restore the new backup locally before exporting.
@@ -45,7 +45,7 @@ Complete each gate in order. Do not change the live `www` DNS record until the c
 7. **Cut over only `www`.** In Squarespace DNS, change only the `www` CNAME from `www.ralphdonaldjessee.com.herokudns.com` to `rdjessee-blog-preview.pages.dev`, keeping the current TTL. Leave apex forwarding, nameservers, MX/SPF and other mail records, and DNSSEC unchanged.
 8. **Verify from outside the dashboard.** Wait for DNS to resolve to Pages. Confirm Cloudflare reports `www.ralphdonaldjessee.com` Active with SSL enabled. Load the HTTPS homepage, representative story/picture/tag routes, a not-found route, CSS/JavaScript, and an audio range request. Inspect browser console/network errors. Keep Heroku available and monitor the public site during the rollback window.
 
-If a gate fails, stop before changing the live CNAME. DNS and certificate changes can take time to propagate; use the preview hostname and Pages deployment status to diagnose before another attempt.
+For future releases, stop before changing DNS if a gate fails. DNS and certificate changes can take time to propagate; use the preview hostname and Pages deployment status to diagnose before another attempt.
 
 ## Roll back to Heroku
 
@@ -70,5 +70,5 @@ The `www` CNAME uses a one-hour TTL, but resolvers may cache records longer. Dur
 
 | Date | Host | Change | Result |
 | --- | --- | --- | --- |
-| November 13, 2026 | `www` | Temporarily pointed to `rdjessee-blog-preview.pages.dev`, then restored to `www.ralphdonaldjessee.com.herokudns.com` after Pages remained inactive during the check | Live hostname left on Heroku; see [hosting plan](HOSTING-PLAN.md) |
+| November 13, 2026 | `www` | Changed CNAME from `www.ralphdonaldjessee.com.herokudns.com` to `rdjessee-blog-preview.pages.dev` in Squarespace | Cloudflare verified the domain, enabled SSL, and public HTTPS checks returned the converted site. Heroku remains available for rollback. |
 | November 13, 2026 | `preview` | Added CNAME to `rdjessee-blog-preview.pages.dev` | Cloudflare domain became Active with SSL; converted site verified at `https://preview.ralphdonaldjessee.com/` |
