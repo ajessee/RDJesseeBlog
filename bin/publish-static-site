@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET="${1:-}"
+AUTHORING_DB="${DEVELOPMENT_DATABASE:-rdjessee_blog_authoring}"
+PROJECT="rdjessee-blog-preview"
+
+if [[ "$AUTHORING_DB" != "rdjessee_blog_authoring" ]]; then
+  echo "Refusing to publish from ${AUTHORING_DB}; set DEVELOPMENT_DATABASE=rdjessee_blog_authoring." >&2
+  exit 2
+fi
+
+case "$TARGET" in
+  preview) BRANCH="codex/static-site-conversion" ;;
+  production) BRANCH="master" ;;
+  *)
+    echo "Usage: bin/publish-static-site preview|production" >&2
+    exit 2
+    ;;
+esac
+
+DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:export
+DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:verify_media_published
+npm run site:build
+npx wrangler pages deploy dist/static-site --project-name "$PROJECT" --branch "$BRANCH"

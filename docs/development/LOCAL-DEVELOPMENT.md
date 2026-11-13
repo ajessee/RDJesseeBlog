@@ -16,6 +16,49 @@ Open http://localhost:3000. The schema-loading commands above create an empty de
 
 The web port binds only to localhost. PostgreSQL and Elasticsearch have no published host ports. Compose uses dedicated named volumes and local development credentials, not Heroku credentials. Development uploads use local disk and mail uses the test delivery adapter. Search uses the local Elasticsearch container; its legacy version is temporary for compatibility with the locked client.
 
+## Static-site authoring database
+
+`rdjessee_blog_authoring` is a local copy of the latest restored production backup (`b039`, captured November 13, 2026). It is a separate database inside the Compose Postgres volume; `rdjessee_blog_development`, `rdjessee_blog_static_release`, and `rdjessee_blog_static_restore` are not used or overwritten. The database contains production account and archive data, so keep it local and do not put dumps or exports in Git, Pages, or another shared service.
+
+Run the Rails app against the authoring copy:
+
+```sh
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose up -d db search
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose up web
+```
+
+Rails remains bound to `127.0.0.1:3000`. The authoring database has the production records and password hashes; use an existing account locally. Local mail is non-delivering. Active Storage blob metadata in this database is configured for the local disk service. Hydrate the 111 media objects used by the archive from the public CloudFront distribution with:
+
+```sh
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose run --rm web bundle exec rails static_archive:prepare_local_storage
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose run --rm web bundle exec rails static_archive:export
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose run --rm web bundle exec rails static_archive:hydrate_media
+```
+
+The hydration command downloads only media referenced by public archive records, checks byte size and Active Storage checksum, and writes to the ignored local `storage/` volume. It reads CloudFront; it does not write to S3. Newly attached media uploaded in the local app remains on disk and must be published to the existing S3 bucket before Pages can serve it.
+
+To update the local authoring copy, capture a fresh Heroku Postgres backup and note its ID, then run `bin/refresh-authoring-db bNNN`:
+
+```sh
+heroku pg:backups:capture --app rdjessee --wait
+heroku pg:backups --app rdjessee
+bin/refresh-authoring-db bNNN
+```
+
+The script preserves the previous authoring database under a timestamped name and restores the new dump into the authoring database. This is a snapshot replacement, not a merge: unpublished edits are kept in the prior database but do not automatically move to the refreshed one. The production backup and private exports remain under ignored `tmp/static-archive/` with restrictive permissions.
+
+To publish the current authoring data without deploying Rails to Heroku:
+
+```sh
+bin/publish-static-site preview
+# inspect the preview, then:
+bin/publish-static-site production
+```
+
+Before building, the script checks that every exported media URL is readable through CloudFront and has the expected size. That check prevents publishing broken images/audio, but it does not upload new local media. The AWS CLI profile for the static-site role currently needs reauthentication; its active default identity belongs to another AWS account and has no bucket access. Set up and verify the intended `rdjessee-static-setup` role session and narrowly scoped write/allowlist permissions before publishing new pictures or recordings. Story text and metadata edits using already published media can be published now.
+
+See [Heroku redeployment and teardown](HEROKU-REDEPLOY-AND-TEARDOWN.md) for the Heroku inventory, rollback prerequisites, and deferred retirement sequence.
+
 ## Tests
 
 ```sh

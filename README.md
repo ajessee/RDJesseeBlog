@@ -2,13 +2,13 @@
  
 # [Ralph Donald Jessee Blog](https://ralphdonaldjessee.com/) 
 
-Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md) · [static cutover and Heroku rollback](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
+Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md) · [static cutover and Heroku rollback](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md) · [Heroku redeployment and teardown](docs/development/HEROKU-REDEPLOY-AND-TEARDOWN.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
  
 My grandfather, Ralph 'Don' Jessee, lived most of his life in Lima, Ohio. Late in his life, after his third wife died, his daughter Catherine invited him to live with her in Lafayette, Louisiana. After he moved down there, she enrolled him in a life writing class and much to everyone's surprise, he wrote prolifically. When he died in 2016, he left behind a collection of over 170 stories.
  
 I built this web application as a platform to share these stories with his extended family and preserve his writing legacy for posterity. It's also a place to share pictures of his life, and users can signup to share their own personal memories of Don. 
  
-The app is written in Rails 8.1 and currently deployed in production using Heroku buildpacks. A separate multi-stage, non-root Docker image is maintained for local development and future hosting portability.
+The original Rails 8.1 app remains available on Heroku for rollback, but the public site now runs as a static archive on Cloudflare Pages. Docker is used to run Rails locally as the content-authoring tool; publishing updates to Pages does not deploy the app to Heroku.
  
 ## Features
  
@@ -32,20 +32,31 @@ The app is written in Rails 8.1 and currently deployed in production using Herok
 * Automatic password reset feature via email
 * Cloudflare Turnstile bot protection on signup, enforced server-side
 
-## Static archive conversion (in progress)
+## Static site and local content authoring
 
-The planned static archive uses Cloudflare Pages for generated HTML, CSS, and JavaScript, with public media served from the existing S3 bucket through CloudFront. The current [`codex/static-site-conversion` preview](https://codex-static-site-conversion.rdjessee-blog-preview.pages.dev/) was uploaded directly and is not connected to Git; Rails on Heroku remains the production site. See the [hosting plan](docs/development/HOSTING-PLAN.md) for the media access design, review gates, cost assumptions, and cutover plan.
+The public site uses Cloudflare Pages for generated HTML, CSS, and JavaScript, with public media served from the existing S3 bucket through CloudFront. The production site is [www.ralphdonaldjessee.com](https://www.ralphdonaldjessee.com/). Pages uses direct uploads and is not connected to Git. Rails on Heroku remains available as a rollback target; see the [cutover runbook](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md).
 
-The exporter and static builder currently produce a preview containing 193 stories, 56 pictures, 39 recordings, and 97 tag pages. Publishing uses **local export and direct upload**: the exporter reads the approved local archive database, and the resulting private JSON stays outside Git and Cloudflare. To refresh the conversion preview:
+The repo provides a separate local authoring database, cloned from the latest Heroku production backup (`b039`, November 13, 2026). It does not point Rails at the live Heroku database. The authoring copy is isolated from the synthetic development and release snapshot databases. To run Rails against it:
 
 ```sh
-npm run site:export
-npm run site:build
-npm run site:test
-npx wrangler pages deploy dist/static-site --project-name rdjessee-blog-preview --branch codex/static-site-conversion
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose up -d db search
+DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose up web
 ```
 
-The exporter writes its JSON to `tmp/static-archive/export-cloudfront.json`; the generated Pages files go to `dist/static-site/`. Both locations are excluded from Git. Wrangler deploys this build to the branch-specific preview URL, not the production domain. Review the preview after each upload. Git-triggered Pages builds are intentionally not configured because the build depends on a local database export. The automated checks use synthetic fixture data and do not need production credentials or data. They cover HTML entity handling, story filter matching, generated pages and routes, and the build's unresolved-media guard. The separate Rails RSpec suite does not currently exercise this static generator.
+
+Open http://localhost:3000 and sign in using an existing local authoring account. Existing images and recordings are downloaded from CloudFront into the local Docker media volume; Active Storage in this authoring database is switched to local disk. Emails are not sent from development. Do not run the Rails app against the Heroku URL.
+
+To refresh the local authoring database from a newer completed Heroku backup, first capture a backup in Heroku and note its ID. Then run `bin/refresh-authoring-db bNNN`. The script downloads the dump privately, restores it into an isolated temporary database, retains the prior authoring database under a timestamped name rather than deleting it, updates only the new local copy to use disk storage, and hydrates its referenced media. Refreshing does not merge previous local edits into the new snapshot; keep working on the retained copy if it contains unpublished changes.
+
+To publish from the current authoring database:
+
+```sh
+bin/publish-static-site preview
+# Review the Pages preview, then publish to the live hostname:
+bin/publish-static-site production
+```
+
+The script exports the authoring database, verifies each referenced media object is readable through CloudFront, builds the static site, and directly uploads it to the selected Pages branch. The export is private at `tmp/static-archive/export-cloudfront.json`; Pages output is in ignored `dist/static-site/`. Publishing is a Pages upload, not a Heroku deployment. New pictures or recordings added in local Rails remain on local disk until they are uploaded to the existing S3 bucket and added to the distribution's exact object allowlist. The publishing script stops if CloudFront cannot read them. The current AWS CLI session is expired/for a different account; see [local authoring and publishing](docs/development/LOCAL-DEVELOPMENT.md) and [Heroku redeployment and teardown](docs/development/HEROKU-REDEPLOY-AND-TEARDOWN.md) for current prerequisites and infrastructure records.
   
 ## Technical Specifications
  

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP="${HEROKU_APP:-rdjessee}"
+AUTHORING_DB="rdjessee_blog_authoring"
+IMPORT_DB="rdjessee_blog_authoring_import"
+BACKUP_ID="${1:-}"
+
+if [[ -z "$BACKUP_ID" || ! "$BACKUP_ID" =~ ^b[0-9]+$ ]]; then
+  echo "Usage: bin/refresh-authoring-db bNNN" >&2
+  echo "Capture a Heroku Postgres backup first, then pass its completed ID." >&2
+  exit 2
+fi
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DUMP_FILE="$ROOT/tmp/static-archive/production-${BACKUP_ID}.dump"
+STAMP="$(date -u +%Y%m%d_%H%M%S)"
+OLD_DB="rdjessee_blog_authoring_before_${STAMP}"
+
+mkdir -p "$ROOT/tmp/static-archive"
+chmod 700 "$ROOT/tmp/static-archive"
+
+if [[ ! -s "$DUMP_FILE" ]]; then
+  heroku pg:backups:download "$BACKUP_ID" --app "$APP" --output "$DUMP_FILE"
+fi
+chmod 600 "$DUMP_FILE"
+
+docker compose up -d db search
+docker compose stop web >/dev/null 2>&1 || true
+
+if docker compose exec -T db psql -U postgres -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '${IMPORT_DB}'" | rg -q '^1$'; then
+  echo "Temporary database ${IMPORT_DB} already exists; inspect it before retrying." >&2
+  exit 1
+fi
+
+docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${IMPORT_DB}"
+cat "$DUMP_FILE" | docker compose exec -T db pg_restore -U postgres --no-owner --no-privileges --dbname "$IMPORT_DB"
+docker compose exec -T db psql -U postgres -d "$IMPORT_DB" -v ON_ERROR_STOP=1 -c "UPDATE active_storage_blobs SET service_name = 'local'"
+
+if docker compose exec -T db psql -U postgres -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '${AUTHORING_DB}'" | rg -q '^1$'; then
+  docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "ALTER DATABASE ${AUTHORING_DB} RENAME TO ${OLD_DB}"
+fi
+docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "ALTER DATABASE ${IMPORT_DB} RENAME TO ${AUTHORING_DB}"
+
+DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:export
+DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:hydrate_media
+
+echo "Authoring database refreshed from Heroku backup ${BACKUP_ID}."
+if docker compose exec -T db psql -U postgres -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '${OLD_DB}'" | rg -q '^1$'; then
+  echo "Previous authoring database retained as ${OLD_DB}; it was not deleted."
+fi
+echo "Start Rails with: DEVELOPMENT_DATABASE=${AUTHORING_DB} docker compose up web"

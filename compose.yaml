@@ -11,6 +11,7 @@ services:
       - local_media:/app/storage
     environment:
       RAILS_ENV: development
+      DEVELOPMENT_DATABASE: ${DEVELOPMENT_DATABASE:-rdjessee_blog_development}
       PGHOST: db
       PGUSER: postgres
       PGPASSWORD: local-development-only

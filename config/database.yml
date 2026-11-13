@@ -30,7 +30,7 @@ default: &default
 
 development:
   <<: *default
-  database: rdjessee_blog_development
+  database: <%= ENV.fetch('DEVELOPMENT_DATABASE', 'rdjessee_blog_development') %>
   # TODO: Change postgres port to 5432 (from 5433) on home computer
   port: 5432
 

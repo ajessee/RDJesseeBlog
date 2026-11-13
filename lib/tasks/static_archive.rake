@@ -1,6 +1,10 @@
 require 'cgi'
+require 'base64'
+require 'digest'
 require 'fileutils'
 require 'json'
+require 'net/http'
+require 'tempfile'
 require 'uri'
 
 namespace :static_archive do
@@ -142,5 +146,121 @@ namespace :static_archive do
     puts 'Media URLs are references only. This task does not access, copy, or change S3 objects or permissions.'
     puts "WARNING: #{unresolved_media_urls} embedded Rails Active Storage URL(s) still need media mapping." if unresolved_media_urls.positive?
     puts "WARNING: #{unmapped_media_references} attached media item(s) have no stable URL." if unmapped_media_references.positive?
+  end
+
+  desc 'Switch the selected local authoring database to local Active Storage'
+  task prepare_local_storage: :environment do
+    abort 'This task only runs in development.' unless Rails.env.development?
+
+    database_name = ActiveRecord::Base.connection_db_config.database
+    abort "Refusing to change Active Storage on #{database_name}. Set DEVELOPMENT_DATABASE=rdjessee_blog_authoring." unless database_name == 'rdjessee_blog_authoring'
+
+    updated = ActiveStorage::Blob.update_all(service_name: 'local')
+    puts "Set #{updated} local authoring blob records to the local storage service."
+  end
+
+  desc 'Hydrate referenced authoring media from the public CloudFront distribution into local disk storage'
+  task hydrate_media: :environment do
+    abort 'This task only runs in development.' unless Rails.env.development?
+    abort 'Select the isolated authoring database with DEVELOPMENT_DATABASE=rdjessee_blog_authoring.' unless ActiveRecord::Base.connection_db_config.database == 'rdjessee_blog_authoring'
+
+    export_path = Pathname.new(ENV.fetch('STATIC_ARCHIVE_EXPORT', Rails.root.join('tmp/static-archive/export-cloudfront.json').to_s))
+    abort "Missing #{export_path}; run static_archive:export first." unless export_path.file?
+
+    archive = JSON.parse(export_path.read)
+    references = archive.fetch('stories').map { |item| item['picture'] } +
+      archive.fetch('pictures').map { |item| item['image'] } +
+      archive.fetch('recordings').map { |item| item['audio'] } +
+      archive.fetch('videos').map { |item| item['video'] }
+    media_base = URI(ENV.fetch('STATIC_MEDIA_BASE_URL', 'https://d18adgc24rj7ak.cloudfront.net'))
+    abort 'Media base URL must use HTTPS.' unless media_base.scheme == 'https'
+
+    keys = references.compact.filter_map do |reference|
+      next unless reference['url']
+
+      uri = URI(reference.fetch('url'))
+      abort "Unexpected media host #{uri.host}." unless uri.host == media_base.host && uri.scheme == 'https'
+
+      URI::DEFAULT_PARSER.unescape(uri.path.delete_prefix('/'))
+    end.uniq
+    blobs_by_key = ActiveStorage::Blob.where(key: keys).index_by(&:key)
+    missing_blobs = keys - blobs_by_key.keys
+    abort "The selected authoring database is missing #{missing_blobs.length} referenced media blob(s)." if missing_blobs.any?
+
+    hydrated = 0
+    existing = 0
+    keys.each do |key|
+      blob = blobs_by_key.fetch(key)
+      service = blob.service
+      if service.exist?(key)
+        existing += 1
+        next
+      end
+
+      uri = URI.join("#{media_base}/", URI::DEFAULT_PARSER.escape(key, /[^A-Za-z0-9\-._~\/]/))
+      bytes_written = 0
+      Tempfile.create(['static-media-', File.extname(blob.filename.to_s)]) do |file|
+        file.binmode
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 180) do |http|
+          request = Net::HTTP::Get.new(uri.request_uri)
+          http.request(request) do |response|
+            abort "CloudFront returned HTTP #{response.code} for media key #{key}." unless response.is_a?(Net::HTTPSuccess)
+
+            response.read_body do |chunk|
+              file.write(chunk)
+              bytes_written += chunk.bytesize
+            end
+          end
+        end
+        abort "Size mismatch for media key #{key}: downloaded #{bytes_written}, expected #{blob.byte_size}." unless bytes_written == blob.byte_size
+
+        file.flush
+        file.rewind
+        local_checksum = Base64.strict_encode64(Digest::MD5.file(file.path).digest)
+        abort "Checksum mismatch for media key #{key}." unless ActiveSupport::SecurityUtils.secure_compare(local_checksum, blob.checksum)
+
+        file.rewind
+        service.upload(key, file, checksum: blob.checksum)
+      end
+      hydrated += 1
+    end
+
+    puts "Local media ready: #{hydrated} downloaded and verified, #{existing} already present (#{keys.length} referenced objects)."
+  end
+
+  desc 'Confirm all exported media objects can be read through CloudFront before static publishing'
+  task verify_media_published: :environment do
+    abort 'This task only runs in development.' unless Rails.env.development?
+    abort 'Select the isolated authoring database with DEVELOPMENT_DATABASE=rdjessee_blog_authoring.' unless ActiveRecord::Base.connection_db_config.database == 'rdjessee_blog_authoring'
+
+    export_path = Pathname.new(ENV.fetch('STATIC_ARCHIVE_EXPORT', Rails.root.join('tmp/static-archive/export-cloudfront.json').to_s))
+    abort "Missing #{export_path}; run static_archive:export first." unless export_path.file?
+
+    archive = JSON.parse(export_path.read)
+    references = archive.fetch('stories').map { |item| item['picture'] } +
+      archive.fetch('pictures').map { |item| item['image'] } +
+      archive.fetch('recordings').map { |item| item['audio'] } +
+      archive.fetch('videos').map { |item| item['video'] }
+    media_base = URI(ENV.fetch('STATIC_MEDIA_BASE_URL', 'https://d18adgc24rj7ak.cloudfront.net'))
+    abort 'Media base URL must use HTTPS.' unless media_base.scheme == 'https'
+
+    failures = []
+    references.compact.uniq { |reference| reference['url'] }.each do |reference|
+      uri = URI(reference.fetch('url'))
+      abort "Unexpected media host #{uri.host}." unless uri.host == media_base.host && uri.scheme == 'https'
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) do |http|
+        http.request(Net::HTTP::Head.new(uri.request_uri))
+      end
+      failures << URI::DEFAULT_PARSER.unescape(uri.path.delete_prefix('/')) unless response.is_a?(Net::HTTPSuccess) && response['content-length'].to_i == reference.fetch('byte_size')
+    rescue StandardError => error
+      failures << "#{reference['filename']} (#{error.class})"
+    end
+
+    if failures.any?
+      abort "#{failures.length} media object(s) are unavailable or have the wrong size through CloudFront; upload them to the existing bucket and update its exact CloudFront allowlist before publishing."
+    end
+
+    puts "Verified #{references.compact.uniq { |reference| reference['url'] }.length} media objects through CloudFront."
   end
 end
