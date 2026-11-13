@@ -5,6 +5,12 @@
   "engines": {
     "node": "24.x"
   },
+  "scripts": {
+    "site:export": "bin/rails static_archive:export",
+    "site:build": "node script/build-static-site.mjs",
+    "site:test": "node --test script/*.test.mjs",
+    "site:media-manifest": "node script/build-media-manifest.mjs"
+  },
   "dependencies": {
     "trix": "2.1.19"
   }

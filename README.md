@@ -2,7 +2,7 @@
  
 # [Ralph Donald Jessee Blog](https://ralphdonaldjessee.com/) 
 
-Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
+Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md) · [static cutover and Heroku rollback](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
  
 My grandfather, Ralph 'Don' Jessee, lived most of his life in Lima, Ohio. Late in his life, after his third wife died, his daughter Catherine invited him to live with her in Lafayette, Louisiana. After he moved down there, she enrolled him in a life writing class and much to everyone's surprise, he wrote prolifically. When he died in 2016, he left behind a collection of over 170 stories.
  
@@ -31,6 +31,21 @@ The app is written in Rails 8.1 and currently deployed in production using Herok
 * User activation email upon user sign-up to ensure that user owns email address
 * Automatic password reset feature via email
 * Cloudflare Turnstile bot protection on signup, enforced server-side
+
+## Static archive conversion (in progress)
+
+The planned static archive uses Cloudflare Pages for generated HTML, CSS, and JavaScript, with public media served from the existing S3 bucket through CloudFront. The current [`codex/static-site-conversion` preview](https://codex-static-site-conversion.rdjessee-blog-preview.pages.dev/) was uploaded directly and is not connected to Git; Rails on Heroku remains the production site. See the [hosting plan](docs/development/HOSTING-PLAN.md) for the media access design, review gates, cost assumptions, and cutover plan.
+
+The exporter and static builder currently produce a preview containing 193 stories, 56 pictures, 39 recordings, and 97 tag pages. Publishing uses **local export and direct upload**: the exporter reads the approved local archive database, and the resulting private JSON stays outside Git and Cloudflare. To refresh the conversion preview:
+
+```sh
+npm run site:export
+npm run site:build
+npm run site:test
+npx wrangler pages deploy dist/static-site --project-name rdjessee-blog-preview --branch codex/static-site-conversion
+```
+
+The exporter writes its JSON to `tmp/static-archive/export-cloudfront.json`; the generated Pages files go to `dist/static-site/`. Both locations are excluded from Git. Wrangler deploys this build to the branch-specific preview URL, not the production domain. Review the preview after each upload. Git-triggered Pages builds are intentionally not configured because the build depends on a local database export. The automated checks use synthetic fixture data and do not need production credentials or data. They cover HTML entity handling, story filter matching, generated pages and routes, and the build's unresolved-media guard. The separate Rails RSpec suite does not currently exercise this static generator.
   
 ## Technical Specifications
  

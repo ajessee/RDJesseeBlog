@@ -21,6 +21,7 @@
 !/storage/.keep
 
 /public/assets
+/dist/
 .byebug_history
 
 # Ignore master key for decrypting credentials and more.
@@ -28,6 +29,7 @@
 /public/packs
 /public/packs-test
 /node_modules
+/.wrangler/
 /yarn-error.log
 yarn-debug.log*
 .yarn-integrity
