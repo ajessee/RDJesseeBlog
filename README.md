@@ -2,15 +2,17 @@
  
 # [Ralph Donald Jessee Blog](https://ralphdonaldjessee.com/) 
 
-Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md) · [static cutover and Heroku rollback](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md) · [Heroku redeployment and teardown](docs/development/HEROKU-REDEPLOY-AND-TEARDOWN.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
+Documentation: [roadmap](docs/development/ROADMAP.md) · [local Docker setup](docs/development/LOCAL-DEVELOPMENT.md) · [production Docker image](docs/development/PRODUCTION-DOCKER.md) · [security posture](docs/development/SECURITY-ACCEPTANCE.md) · [hosting options](docs/development/HOSTING-PLAN.md) · [static cutover and Rails recovery](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md) · [Heroku retirement and recovery](docs/development/HEROKU-REDEPLOY-AND-TEARDOWN.md). Historical upgrade record: [docs/archive/](docs/archive/) ([upgrade plan](docs/archive/UPGRADE-PLAN.md), [Heroku rollout](docs/archive/HEROKU-DEPLOYMENT.md)).
  
 My grandfather, Ralph 'Don' Jessee, lived most of his life in Lima, Ohio. Late in his life, after his third wife died, his daughter Catherine invited him to live with her in Lafayette, Louisiana. After he moved down there, she enrolled him in a life writing class and much to everyone's surprise, he wrote prolifically. When he died in 2016, he left behind a collection of over 170 stories.
  
-I built this web application as a platform to share these stories with his extended family and preserve his writing legacy for posterity. It's also a place to share pictures of his life, and users can signup to share their own personal memories of Don. 
+I built this web application as a platform to share these stories with his extended family and preserve his writing legacy for posterity. The original Rails site also let visitors share pictures and memories. The public archive is now read-only; the Rails app runs locally for content authoring.
  
-The original Rails 8.1 app remains available on Heroku for rollback, but the public site now runs as a static archive on Cloudflare Pages. Docker is used to run Rails locally as the content-authoring tool; publishing updates to Pages does not deploy the app to Heroku.
+The public site runs as a static archive on Cloudflare Pages. Docker runs Rails locally as the content-authoring tool; publishing updates to Pages does not deploy a Rails app. The former Heroku app was retired on November 14, 2026.
  
-## Features
+## Original Rails application features
+
+These describe the former interactive Rails site. The public Pages archive preserves the stories and read-only presentation but does not include sign-in, visitor submissions, or uploads.
  
 * Mobile-first design
 * Stories with comments, tagging, and picture thumbnails for story cards
@@ -34,9 +36,9 @@ The original Rails 8.1 app remains available on Heroku for rollback, but the pub
 
 ## Static site and local content authoring
 
-The public site uses Cloudflare Pages for generated HTML, CSS, and JavaScript, with public media served from the existing S3 bucket through CloudFront. The production site is [www.ralphdonaldjessee.com](https://www.ralphdonaldjessee.com/). Pages uses direct uploads and is not connected to Git. Rails on Heroku remains available as a rollback target; see the [cutover runbook](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md).
+The public site uses Cloudflare Pages for generated HTML, CSS, and JavaScript, with public media served from the existing S3 bucket through CloudFront. The production site is [www.ralphdonaldjessee.com](https://www.ralphdonaldjessee.com/). Pages uses direct uploads and is not connected to Git. The former Heroku app was retired on November 14, 2026; restoring Rails now requires rebuilding the service from the saved recovery materials. See the [cutover and recovery runbook](docs/development/STATIC-CUTOVER-AND-HEROKU-ROLLBACK.md).
 
-The repo provides a separate local authoring database, cloned from the latest Heroku production backup (`b039`, November 13, 2026). It does not point Rails at the live Heroku database. The authoring copy is isolated from the synthetic development and release snapshot databases. To run Rails against it:
+The repo provides a separate local authoring database, cloned from the latest Heroku production backup (`b040`, November 14, 2026). It does not point Rails at the live Heroku database. The authoring copy is isolated from the synthetic development and release snapshot databases. To run Rails against it:
 
 ```sh
 DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose up -d db search
@@ -46,7 +48,7 @@ DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose up web
 
 Open http://localhost:3000 and sign in using an existing local authoring account. Existing images and recordings are downloaded from CloudFront into the local Docker media volume; Active Storage in this authoring database is switched to local disk. Emails are not sent from development. Do not run the Rails app against the Heroku URL.
 
-To refresh the local authoring database from a newer completed Heroku backup, first capture a backup in Heroku and note its ID. Then run `bin/refresh-authoring-db bNNN`. The script downloads the dump privately, restores it into an isolated temporary database, retains the prior authoring database under a timestamped name rather than deleting it, updates only the new local copy to use disk storage, and hydrates its referenced media. Refreshing does not merge previous local edits into the new snapshot; keep working on the retained copy if it contains unpublished changes.
+The final Heroku snapshot is `b040`, retained privately at `tmp/static-archive/production-b040.dump`. To recreate the authoring database from this snapshot, run `bin/refresh-authoring-db b040`. The script restores the dump into an isolated temporary database, retains the prior authoring database under a timestamped name rather than deleting it, updates only the new local copy to use disk storage, and hydrates its referenced media. Heroku was retired after `b040`, so no newer Heroku backup can be captured. Refreshing does not merge local edits into the snapshot; keep working on the retained copy if it contains unpublished changes.
 
 To publish from the current authoring database:
 
@@ -56,20 +58,20 @@ bin/publish-static-site preview
 bin/publish-static-site production
 ```
 
-The script exports the authoring database, verifies each referenced media object is readable through CloudFront, builds the static site, and directly uploads it to the selected Pages branch. The export is private at `tmp/static-archive/export-cloudfront.json`; Pages output is in ignored `dist/static-site/`. Publishing is a Pages upload, not a Heroku deployment. New pictures or recordings added in local Rails remain on local disk until they are uploaded to the existing S3 bucket and added to the distribution's exact object allowlist. The publishing script stops if CloudFront cannot read them. The current AWS CLI session is expired/for a different account; see [local authoring and publishing](docs/development/LOCAL-DEVELOPMENT.md) and [Heroku redeployment and teardown](docs/development/HEROKU-REDEPLOY-AND-TEARDOWN.md) for current prerequisites and infrastructure records.
+The script exports the authoring database, uploads only newly referenced media to the existing `andre-pictures` bucket, adds those exact keys to the CloudFront OAC allowlist, verifies media through CloudFront, builds the static site, and uploads it to the selected Pages branch. The export is private at `tmp/static-archive/export-cloudfront.json`; Pages output is in ignored `dist/static-site/`. Publishing is a Pages upload, not a Heroku deployment. AWS credentials are short-lived and passed to the Docker task from the `rdjessee-static-setup` CLI profile without saving them in the repo. The role has the narrowly scoped upload policy described in [AWS media publishing](docs/development/AWS-STATIC-MEDIA-PUBLISHING.md).
   
 ## Technical Specifications
  
 * Written in Rails 8.1.3.1 on Ruby 4.0.6
-* Hosted on Heroku (`heroku-24` stack) via buildpacks; a separate multi-stage, non-root Docker image supports local development and portability; migrations run as an explicit release step
-* Uses Heroku SendGrid to deliver user activation emails, password reset emails, or any other communication
-* Uses Heroku Postgres and PostgreSQL database for data persistence to store user information
-* Uses AWS Simple Storage Service (S3) to store web application assets, served through Active Storage
+* Public HTML, CSS, and JavaScript are hosted on Cloudflare Pages; images and audio stay in S3 and are delivered by CloudFront
+* Rails 8.1.3.1 on Ruby 4.0.6 runs locally in Docker for authoring; the former Heroku app was retired November 14, 2026
+* The local Rails app uses PostgreSQL and disk-backed Active Storage; its final production database snapshot is kept privately for recovery
+* The former production app used Heroku Postgres and SendGrid; those services were removed during retirement
 * Images are processed with libvips (Rails 8.1's default Active Storage variant processor), with untrusted/unhardened image loaders explicitly blocked (`Vips.block_untrusted`)
 * Audio recordings and uploads are converted with ffmpeg to a consistent AAC/MP4 format regardless of the source browser's recording format (e.g. WebM/Opus)
 * Uses Google Analytics to monitor and analyze traffic, bounce rates, and page views
 * Uses Bootstrap framework for front end design
-* Uses Elasticsearch (Searchbox) for full-text story search
+* The former Rails app used Elasticsearch (Searchbox); the static archive uses generated client-side search/filter data
 * Security scanning via Brakeman (static analysis), bundler-audit and npm audit (dependency CVEs), and Docker Scout (OS/image CVEs) — see [docs/development/SECURITY-ACCEPTANCE.md](docs/development/SECURITY-ACCEPTANCE.md) for current accepted findings
 
 ## Change Log

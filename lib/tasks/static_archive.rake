@@ -228,6 +228,125 @@ namespace :static_archive do
     puts "Local media ready: #{hydrated} downloaded and verified, #{existing} already present (#{keys.length} referenced objects)."
   end
 
+  desc 'Upload referenced local authoring media and add exact keys to the CloudFront origin allowlist'
+  task publish_media: :environment do
+    abort 'This task only runs in development.' unless Rails.env.development?
+    abort 'Select the isolated authoring database with DEVELOPMENT_DATABASE=rdjessee_blog_authoring.' unless ActiveRecord::Base.connection_db_config.database == 'rdjessee_blog_authoring'
+
+    export_path = Pathname.new(ENV.fetch('STATIC_ARCHIVE_EXPORT', Rails.root.join('tmp/static-archive/export-cloudfront.json').to_s))
+    abort "Missing #{export_path}; run static_archive:export first." unless export_path.file?
+
+    require 'aws-sdk-s3'
+
+    archive = JSON.parse(export_path.read)
+    references = archive.fetch('stories').map { |item| item['picture'] } +
+      archive.fetch('pictures').map { |item| item['image'] } +
+      archive.fetch('recordings').map { |item| item['audio'] } +
+      archive.fetch('videos').map { |item| item['video'] }
+    abort 'The export contains attached media without a stable URL; refusing to publish.' if references.any? { |reference| reference && reference['url'].blank? }
+
+    media_base = URI(ENV.fetch('STATIC_MEDIA_BASE_URL', 'https://d18adgc24rj7ak.cloudfront.net'))
+    abort 'Media base URL must use HTTPS.' unless media_base.scheme == 'https'
+    keys = references.compact.map do |reference|
+      uri = URI(reference.fetch('url'))
+      abort "Unexpected media host #{uri.host}." unless uri.host == media_base.host && uri.scheme == 'https'
+
+      URI::DEFAULT_PARSER.unescape(uri.path.delete_prefix('/'))
+    end.uniq
+
+    blobs_by_key = ActiveStorage::Blob.where(key: keys).index_by(&:key)
+    missing_blobs = keys - blobs_by_key.keys
+    abort "The selected authoring database is missing #{missing_blobs.length} referenced media blob(s)." if missing_blobs.any?
+
+    references.compact.each do |reference|
+      key = URI::DEFAULT_PARSER.unescape(URI(reference.fetch('url')).path.delete_prefix('/'))
+      blob = blobs_by_key.fetch(key)
+      unless reference.fetch('byte_size') == blob.byte_size && reference.fetch('content_type') == blob.content_type
+        abort "Export metadata no longer matches local blob #{key}; rerun static_archive:export."
+      end
+    end
+
+    bucket = ENV.fetch('S3_BUCKET', 'andre-pictures')
+    abort "Refusing to publish to unexpected bucket #{bucket}." unless bucket == 'andre-pictures'
+
+    client = Aws::S3::Client.new(region: ENV.fetch('AWS_REGION', 'us-east-1'))
+    remote_sizes = {}
+    token = nil
+    loop do
+      response = client.list_objects_v2(bucket: bucket, continuation_token: token)
+      response.contents.each { |object| remote_sizes[object.key] = object.size }
+      break unless response.is_truncated
+
+      token = response.next_continuation_token
+    end
+
+    missing_keys = keys.reject { |key| remote_sizes.key?(key) }
+    invalid_new_keys = missing_keys.reject { |key| key.match?(/\A[a-z0-9]{28}\z/) }
+    abort 'New media keys do not match the reviewed Active Storage key format; refusing to upload.' if invalid_new_keys.any?
+
+    keys.each do |key|
+      next unless remote_sizes.key?(key)
+
+      expected_size = blobs_by_key.fetch(key).byte_size
+      abort "S3 already contains #{key} with a different size; refusing to overwrite it." unless remote_sizes.fetch(key) == expected_size
+    end
+
+    # Validate every local file before the first remote write. Blob#open verifies
+    # Active Storage's stored checksum while yielding the local file.
+    missing_keys.each do |key|
+      blobs_by_key.fetch(key).open do |file|
+        abort "Local blob #{key} has the wrong size." unless file.size == blobs_by_key.fetch(key).byte_size
+      end
+    end
+
+    uploaded = 0
+    missing_keys.each do |key|
+      blob = blobs_by_key.fetch(key)
+      blob.open do |file|
+        client.put_object(
+          bucket: bucket,
+          key: key,
+          body: file,
+          content_type: blob.content_type,
+          content_length: blob.byte_size
+        )
+      end
+      uploaded += 1
+    end
+
+    # The bucket policy intentionally grants CloudFront access to exact object
+    # ARNs only. Extend that existing statement by unioning the exported keys;
+    # retain every other policy statement and never grant direct public access.
+    policy = JSON.parse(client.get_bucket_policy(bucket: bucket).policy)
+    statement = policy.fetch('Statement').find { |item| item['Sid'] == 'AllowCloudFrontOACReadAllowlistedArchiveMedia' }
+    abort 'The expected CloudFront origin access policy statement is missing; refusing to replace the bucket policy.' unless statement
+
+    principal = statement['Principal']
+    source_account = statement.dig('Condition', 'StringEquals', 'AWS:SourceAccount')
+    source_arn = statement.dig('Condition', 'StringEquals', 'AWS:SourceArn')
+    expected_distribution_arn = 'arn:aws:cloudfront::736773231048:distribution/E1KFB1NQNA9XY4'
+    valid_oac_statement = statement['Effect'] == 'Allow' &&
+      principal == { 'Service' => 'cloudfront.amazonaws.com' } &&
+      statement['Action'] == 's3:GetObject' &&
+      source_account == '736773231048' &&
+      source_arn == expected_distribution_arn
+    unless valid_oac_statement
+      abort 'The existing CloudFront bucket-policy statement differs from the reviewed OAC policy; refusing to modify it.'
+    end
+
+    resources = statement['Resource']
+    resources = [resources] unless resources.is_a?(Array)
+    resources = resources.compact.uniq
+    expected_arns = keys.map { |key| "arn:aws:s3:::#{bucket}/#{key}" }
+    new_arns = expected_arns - resources
+    unless new_arns.empty?
+      statement['Resource'] = (resources + new_arns).sort
+      client.put_bucket_policy(bucket: bucket, policy: JSON.generate(policy))
+    end
+
+    puts "Media publish ready: #{uploaded} new object(s) uploaded, #{keys.length - uploaded} existing object(s) reused, #{new_arns.length} exact CloudFront allowlist entry/entries added."
+  end
+
   desc 'Confirm all exported media objects can be read through CloudFront before static publishing'
   task verify_media_published: :environment do
     abort 'This task only runs in development.' unless Rails.env.development?

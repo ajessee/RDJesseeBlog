@@ -11,6 +11,7 @@ amazon:
   service: S3
   access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'].presence || Rails.application.credentials.dig(:aws, :access_key_id) %>
   secret_access_key: <%= ENV['AWS_SECRET_ACCESS_KEY'].presence || Rails.application.credentials.dig(:aws, :secret_access_key) %>
+  session_token: <%= ENV['AWS_SESSION_TOKEN'].presence %>
   bucket: <%= ENV.fetch('S3_BUCKET', 'andre-pictures') %>
   region: <%= ENV.fetch('AWS_REGION', 'us-east-1') %>
 

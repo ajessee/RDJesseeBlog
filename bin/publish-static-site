@@ -4,6 +4,7 @@ set -euo pipefail
 TARGET="${1:-}"
 AUTHORING_DB="${DEVELOPMENT_DATABASE:-rdjessee_blog_authoring}"
 PROJECT="rdjessee-blog-preview"
+AWS_PROFILE="${AWS_PROFILE:-rdjessee-static-setup}"
 
 if [[ "$AUTHORING_DB" != "rdjessee_blog_authoring" ]]; then
   echo "Refusing to publish from ${AUTHORING_DB}; set DEVELOPMENT_DATABASE=rdjessee_blog_authoring." >&2
@@ -20,6 +21,10 @@ case "$TARGET" in
 esac
 
 DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:export
+DEVELOPMENT_DATABASE="$AUTHORING_DB" python3 script/run_with_aws_profile.py "$AWS_PROFILE" \
+  docker compose run --rm \
+    -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN -e AWS_REGION -e S3_BUCKET \
+    web bundle exec rails static_archive:publish_media
 DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:verify_media_published
 npm run site:build
 npx wrangler pages deploy dist/static-site --project-name "$PROJECT" --branch "$BRANCH"

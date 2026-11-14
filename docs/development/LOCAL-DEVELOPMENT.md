@@ -1,6 +1,6 @@
 # Local development environment
 
-This is the **Rails 8.1.3.1 / Ruby 4.0.6 local development environment**, run via Docker Compose. Production runs the same Rails/Ruby versions via Heroku buildpacks, not this Compose setup (see [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md) for the separate, portable production image, and [../archive/UPGRADE-PLAN.md](../archive/UPGRADE-PLAN.md) for how the app got here — it passed through Ruby 3.0.7 and Rails 6.1.7.10 / 7.0.10 as intermediate migration steps before reaching this runtime; Rails 6.1.7.10 removed the unavailable `mimemagic 0.3.5` dependency from the original lockfile).
+This is the **Rails 8.1.3.1 / Ruby 4.0.6 local authoring environment**, run via Docker Compose. The public site is static on Cloudflare Pages; the former Heroku Rails app was retired after the cutover. See [PRODUCTION-DOCKER.md](PRODUCTION-DOCKER.md) for the separate, portable production image, and [../archive/UPGRADE-PLAN.md](../archive/UPGRADE-PLAN.md) for how the app got here — it passed through Ruby 3.0.7 and Rails 6.1.7.10 / 7.0.10 as intermediate migration steps before reaching this runtime; Rails 6.1.7.10 removed the unavailable `mimemagic 0.3.5` dependency from the original lockfile.
 
 Docker Desktop must be running. From this repository:
 
@@ -18,7 +18,7 @@ The web port binds only to localhost. PostgreSQL and Elasticsearch have no publi
 
 ## Static-site authoring database
 
-`rdjessee_blog_authoring` is a local copy of the latest restored production backup (`b039`, captured November 13, 2026). It is a separate database inside the Compose Postgres volume; `rdjessee_blog_development`, `rdjessee_blog_static_release`, and `rdjessee_blog_static_restore` are not used or overwritten. The database contains production account and archive data, so keep it local and do not put dumps or exports in Git, Pages, or another shared service.
+`rdjessee_blog_authoring` is a local copy of the latest restored production backup (`b040`, captured November 14, 2026). It is a separate database inside the Compose Postgres volume; `rdjessee_blog_development`, `rdjessee_blog_static_release`, and `rdjessee_blog_static_restore` are not used or overwritten. The database contains production account and archive data, so keep it local and do not put dumps or exports in Git, Pages, or another shared service.
 
 Run the Rails app against the authoring copy:
 
@@ -35,19 +35,17 @@ DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose run --rm web bundle 
 DEVELOPMENT_DATABASE=rdjessee_blog_authoring docker compose run --rm web bundle exec rails static_archive:hydrate_media
 ```
 
-The hydration command downloads only media referenced by public archive records, checks byte size and Active Storage checksum, and writes to the ignored local `storage/` volume. It reads CloudFront; it does not write to S3. Newly attached media uploaded in the local app remains on disk and must be published to the existing S3 bucket before Pages can serve it.
+The hydration command downloads only media referenced by public archive records, checks byte size and Active Storage checksum, and writes to the ignored local `storage/` volume. It reads CloudFront; it does not write to S3. Newly attached media uploaded in the local app remains on disk until the publish command uploads it to the existing S3 bucket. The publisher checks the existing object list, uploads only missing keys, and appends only those exact keys to CloudFront's OAC read allowlist. It does not grant public S3 access or delete objects. See [AWS static media publishing](AWS-STATIC-MEDIA-PUBLISHING.md) for the CLI role setup and upload permissions.
 
-To update the local authoring copy, capture a fresh Heroku Postgres backup and note its ID, then run `bin/refresh-authoring-db bNNN`:
+To recreate the local authoring copy from the final production snapshot, run:
 
 ```sh
-heroku pg:backups:capture --app rdjessee --wait
-heroku pg:backups --app rdjessee
-bin/refresh-authoring-db bNNN
+bin/refresh-authoring-db b040
 ```
 
-The script preserves the previous authoring database under a timestamped name and restores the new dump into the authoring database. This is a snapshot replacement, not a merge: unpublished edits are kept in the prior database but do not automatically move to the refreshed one. The production backup and private exports remain under ignored `tmp/static-archive/` with restrictive permissions.
+Heroku was retired after backup `b040`, so there is no live production database to capture a newer backup from. The dump is retained privately at ignored `tmp/static-archive/production-b040.dump`. The script preserves the previous authoring database under a timestamped name and restores the snapshot into the authoring database. This is a snapshot replacement, not a merge: unpublished edits are kept in the prior database but do not automatically move to the refreshed one.
 
-To publish the current authoring data without deploying Rails to Heroku:
+To publish the current authoring data and any new local media without deploying Rails to Heroku:
 
 ```sh
 bin/publish-static-site preview
@@ -55,9 +53,9 @@ bin/publish-static-site preview
 bin/publish-static-site production
 ```
 
-Before building, the script checks that every exported media URL is readable through CloudFront and has the expected size. That check prevents publishing broken images/audio, but it does not upload new local media. The AWS CLI profile for the static-site role currently needs reauthentication; its active default identity belongs to another AWS account and has no bucket access. Set up and verify the intended `rdjessee-static-setup` role session and narrowly scoped write/allowlist permissions before publishing new pictures or recordings. Story text and metadata edits using already published media can be published now.
+Before deployment, the script verifies that every exported media URL is readable through CloudFront and has the expected size. The `rdjessee-static-setup` profile assumes `RDJesseeStaticSiteSetup` in AWS account `736773231048`; verify it with `aws sts get-caller-identity --profile rdjessee-static-setup`. The role now has the narrow `s3:PutObject` policy for new local media, documented in [AWS static media publishing](AWS-STATIC-MEDIA-PUBLISHING.md).
 
-See [Heroku redeployment and teardown](HEROKU-REDEPLOY-AND-TEARDOWN.md) for the Heroku inventory, rollback prerequisites, and deferred retirement sequence.
+See [Heroku retirement and recovery](HEROKU-REDEPLOY-AND-TEARDOWN.md) for the pre-retirement inventory and Rails rebuild procedure.
 
 ## Tests
 
