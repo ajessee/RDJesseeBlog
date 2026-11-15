@@ -55,6 +55,20 @@ bin/publish-static-site production
 
 Before deployment, the script verifies that every exported media URL is readable through CloudFront and has the expected size. The `rdjessee-static-setup` profile assumes `RDJesseeStaticSiteSetup` in AWS account `736773231048`; verify it with `aws sts get-caller-identity --profile rdjessee-static-setup`. The role now has the narrow `s3:PutObject` policy for new local media, documented in [AWS static media publishing](AWS-STATIC-MEDIA-PUBLISHING.md).
 
+## Google Analytics
+
+The old Rails layout loaded Universal Analytics property `UA-98485844-1` in production. Standard Universal Analytics stopped processing new data on July 1, 2023, so the static site uses the existing GA4 stream instead: property `RDJ Blog - GA4`, Measurement ID `G-X591M6Y07B`. The static-site generator includes Google's `gtag.js` snippet in every generated page when `GA4_MEASUREMENT_ID` is set.
+
+`bin/publish-static-site production` supplies this Measurement ID by default. Preview publishing deliberately clears it so preview traffic does not mix into production reports:
+
+```sh
+bin/publish-static-site preview
+# After reviewing the preview, publish production with GA4 enabled:
+bin/publish-static-site production
+```
+
+Direct local builds omit the tag unless `GA4_MEASUREMENT_ID` is set. The ID is public site configuration, not a secret. The old UA ID cannot be used for GA4 collection. When checked during this review, the GA4 stream reported no data received in the prior 48 hours; this was before the new static tag is published.
+
 See [Heroku retirement and recovery](HEROKU-REDEPLOY-AND-TEARDOWN.md) for the pre-retirement inventory and Rails rebuild procedure.
 
 ## Tests

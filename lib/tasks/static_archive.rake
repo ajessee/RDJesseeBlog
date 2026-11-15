@@ -317,7 +317,9 @@ namespace :static_archive do
     # The bucket policy intentionally grants CloudFront access to exact object
     # ARNs only. Extend that existing statement by unioning the exported keys;
     # retain every other policy statement and never grant direct public access.
-    policy = JSON.parse(client.get_bucket_policy(bucket: bucket).policy)
+    policy_response = client.get_bucket_policy(bucket: bucket).policy
+    policy_json = policy_response.respond_to?(:read) ? policy_response.read : policy_response
+    policy = JSON.parse(policy_json)
     statement = policy.fetch('Statement').find { |item| item['Sid'] == 'AllowCloudFrontOACReadAllowlistedArchiveMedia' }
     abort 'The expected CloudFront origin access policy statement is missing; refusing to replace the bucket policy.' unless statement
 

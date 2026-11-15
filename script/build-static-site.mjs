@@ -6,6 +6,20 @@ import { escapeHtml, plainText } from './html-text.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const inputPath = path.resolve(root, process.env.STATIC_ARCHIVE_EXPORT || 'tmp/static-archive/export-cloudfront.json');
 const outputPath = path.resolve(root, process.env.STATIC_ARCHIVE_OUTPUT || 'dist/static-site');
+const ga4MeasurementId = process.env.GA4_MEASUREMENT_ID?.trim() || '';
+
+if (ga4MeasurementId && !/^G-[A-Z0-9]+$/i.test(ga4MeasurementId)) {
+  throw new Error('GA4_MEASUREMENT_ID must be a Google Analytics 4 web stream ID (G-...).');
+}
+
+const googleAnalyticsTag = ga4MeasurementId ? `  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=${ga4MeasurementId}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${ga4MeasurementId}');
+  </script>` : '';
 
 const slug = (value = '') => String(value).toLowerCase()
   .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
@@ -21,6 +35,7 @@ const media = (item, kind, label = '') => {
 const layout = (title, body, active = '') => `<!doctype html>
 <html lang="en">
 <head>
+${googleAnalyticsTag}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>document.documentElement.classList.add('js');</script>

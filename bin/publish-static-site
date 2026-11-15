@@ -20,6 +20,14 @@ case "$TARGET" in
     ;;
 esac
 
+if [[ "$TARGET" == "preview" ]]; then
+  # Keep preview and local review traffic out of the production GA4 reports.
+  export GA4_MEASUREMENT_ID=""
+else
+  # Public Measurement ID for the RDJ Blog - GA4 web stream.
+  export GA4_MEASUREMENT_ID="${GA4_MEASUREMENT_ID:-G-X591M6Y07B}"
+fi
+
 DEVELOPMENT_DATABASE="$AUTHORING_DB" docker compose run --rm web bundle exec rails static_archive:export
 DEVELOPMENT_DATABASE="$AUTHORING_DB" python3 script/run_with_aws_profile.py "$AWS_PROFILE" \
   docker compose run --rm \

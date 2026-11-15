@@ -69,7 +69,7 @@ The script exports the authoring database, uploads only newly referenced media t
 * The former production app used Heroku Postgres and SendGrid; those services were removed during retirement
 * Images are processed with libvips (Rails 8.1's default Active Storage variant processor), with untrusted/unhardened image loaders explicitly blocked (`Vips.block_untrusted`)
 * Audio recordings and uploads are converted with ffmpeg to a consistent AAC/MP4 format regardless of the source browser's recording format (e.g. WebM/Opus)
-* Uses Google Analytics to monitor and analyze traffic, bounce rates, and page views
+* Production builds use the existing Google Analytics 4 web stream; preview builds omit the tag to keep preview traffic out of production reports
 * Uses Bootstrap framework for front end design
 * The former Rails app used Elasticsearch (Searchbox); the static archive uses generated client-side search/filter data
 * Security scanning via Brakeman (static analysis), bundler-audit and npm audit (dependency CVEs), and Docker Scout (OS/image CVEs) — see [docs/development/SECURITY-ACCEPTANCE.md](docs/development/SECURITY-ACCEPTANCE.md) for current accepted findings
